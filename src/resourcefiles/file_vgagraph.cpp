@@ -156,16 +156,20 @@ class FVGAGraph : public FResourceFile
 		{
 			FString path(filename);
 			int lastSlash = path.LastIndexOfAny("/\\:");
+			FString graphBase = path.Mid(lastSlash+1, 8);
+			const bool egaGraph = graphBase.CompareNoCase("egagraph") == 0;
+			const char *dictBase = egaGraph ? "egadict." : "vgadict.";
+			const char *headBase = egaGraph ? "egahead." : "vgahead.";
 			extension = path.Mid(lastSlash+10);
 			path = path.Left(lastSlash+1);
 
-			FString vgadictFile = FString("vgadict.") + extension;
-			FString vgaheadFile = FString("vgahead.") + extension;
+			FString vgadictFile = FString(dictBase) + extension;
+			FString vgaheadFile = FString(headBase) + extension;
 			if(Wads.CheckIfWadLoaded(path.Left(lastSlash)) == -1)
 			{
 				File directory(path.Len() > 0 ? path : ".");
-				FString vgadictFile = path + directory.getInsensitiveFile(FString("vgadict.") + extension, true);
-				FString vgaheadFile = path + directory.getInsensitiveFile(FString("vgahead.") + extension, true);
+				FString vgadictFile = path + directory.getInsensitiveFile(FString(dictBase) + extension, true);
+				FString vgaheadFile = path + directory.getInsensitiveFile(FString(headBase) + extension, true);
 
 				vgadictReader = new FileReader();
 				if(!vgadictReader->Open(vgadictFile))
@@ -195,13 +199,13 @@ class FVGAGraph : public FResourceFile
 			if(!vgadictReader)
 			{
 				FString error;
-				error.Format("Could not open vgagraph since %s is missing.", vgadictFile.GetChars());
+				error.Format("Could not open graphics archive since %s is missing.", vgadictFile.GetChars());
 				throw CRecoverableError(error);
 			}
 			if(!vgaheadReader)
 			{
 				FString error;
-				error.Format("Could not open vgagraph since %s is missing.", vgaheadFile.GetChars());
+				error.Format("Could not open graphics archive since %s is missing.", vgaheadFile.GetChars());
 				throw CRecoverableError(error);
 			}
 		}
@@ -402,7 +406,7 @@ FResourceFile *CheckVGAGraph(const char *filename, FileReader *file, bool quiet)
 	else
 		fname = fname.Left(8);
 
-	if(fname.Len() == 8 && fname.CompareNoCase("vgagraph") == 0) // file must be vgagraph.something
+	if(fname.Len() == 8 && (fname.CompareNoCase("vgagraph") == 0 || fname.CompareNoCase("egagraph") == 0)) // VGA/EGA Huffman graphics archive
 	{
 		FResourceFile *rf = new FVGAGraph(filename, file);
 		if(rf->Open(quiet)) return rf;
