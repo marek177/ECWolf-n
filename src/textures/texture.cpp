@@ -70,7 +70,7 @@ FTexture *PNGTexture_TryCreate(FileReader &, int lumpnum);
 FTexture *JPEGTexture_TryCreate(FileReader &, int lumpnum);
 FTexture *DDSTexture_TryCreate(FileReader &, int lumpnum);
 FTexture *PCXTexture_TryCreate(FileReader &, int lumpnum);
-FTexture *TGATexture_TryCreate(FileReader &, int lumpnum);
+FTexture *TGATexture_TryCreate(FileReader &, int lumpnum);\nFTexture *NitemareImgTexture_TryCreate(FileReader &, int lumpnum);
 FTexture *RawPageTexture_TryCreate(FileReader &, int lumpnum);
 FTexture *RottFlatTexture_TryCreate(FileReader &, int lumpnum);
 FTexture *FlatTexture_TryCreate(FileReader &, int lumpnum);
