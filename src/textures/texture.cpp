@@ -71,6 +71,7 @@ FTexture *JPEGTexture_TryCreate(FileReader &, int lumpnum);
 FTexture *DDSTexture_TryCreate(FileReader &, int lumpnum);
 FTexture *PCXTexture_TryCreate(FileReader &, int lumpnum);
 FTexture *TGATexture_TryCreate(FileReader &, int lumpnum);
+FTexture *NitemareImgTexture_TryCreate(FileReader &, int lumpnum);
 FTexture *RawPageTexture_TryCreate(FileReader &, int lumpnum);
 FTexture *RottFlatTexture_TryCreate(FileReader &, int lumpnum);
 FTexture *FlatTexture_TryCreate(FileReader &, int lumpnum);
@@ -88,6 +89,7 @@ FTexture *WolfShapeTexture_TryCreate(FileReader &, int lumpnum);
 FTexture * FTexture::CreateTexture (int lumpnum, int usetype)
 {
 	static TexCreateInfo CreateInfo[]={
+		{ NitemareImgTexture_TryCreate,	TEX_Any },
 		{ IMGZTexture_TryCreate,		TEX_Any },
 		{ PNGTexture_TryCreate,			TEX_Any },
 		{ JPEGTexture_TryCreate,		TEX_Any },

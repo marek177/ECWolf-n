@@ -235,10 +235,11 @@ FResourceFile *CheckAudiot(const char *filename, FileReader *file, bool quiet);
 FResourceFile *CheckGamemaps(const char *filename, FileReader *file, bool quiet);
 FResourceFile *CheckMacBin(const char *filename, FileReader *file, bool quiet);
 FResourceFile *CheckRtl(const char *filename, FileReader *file, bool quiet);
+FResourceFile *CheckNitemare(const char *filename, FileReader *file, bool quiet);
 
-#define COUNTOF_FUNCS 13
+#define COUNTOF_FUNCS 14
 #define EMBEDDABLE_START 8 // Should point to AudioT
-static CheckFunc funcs[COUNTOF_FUNCS] = { CheckWad, CheckZip, Check7Z, CheckPak, CheckGRP, CheckRFF, CheckRtl, CheckMacBin, CheckAudiot, CheckVGAGraph, CheckGamemaps, CheckVSwap, CheckLump };
+static CheckFunc funcs[COUNTOF_FUNCS] = { CheckWad, CheckZip, Check7Z, CheckPak, CheckGRP, CheckRFF, CheckRtl, CheckMacBin, CheckAudiot, CheckVGAGraph, CheckGamemaps, CheckVSwap, CheckNitemare, CheckLump };
 
 FResourceFile *FResourceFile::OpenResourceFile(const char *filename, FileReader *file, bool quiet)
 {
