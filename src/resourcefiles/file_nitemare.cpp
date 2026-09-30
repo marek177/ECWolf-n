@@ -21,6 +21,14 @@
 namespace
 {
 
+static void WriteNitemareLong(BYTE *ptr, DWORD value)
+{
+	ptr[0] = static_cast<BYTE>(value & 0xFF);
+	ptr[1] = static_cast<BYTE>((value >> 8) & 0xFF);
+	ptr[2] = static_cast<BYTE>((value >> 16) & 0xFF);
+	ptr[3] = static_cast<BYTE>((value >> 24) & 0xFF);
+}
+
 static FString BaseNameOf(const char *filename)
 {
 	FString name(filename);
@@ -50,12 +58,12 @@ protected:
 
 		Cache = new char[LumpSize];
 		memcpy(Cache, waveHeader, sizeof(waveHeader));
-		WriteLittleLong(reinterpret_cast<BYTE *>(Cache + 4), RawSize + 36);
-		WriteLittleLong(reinterpret_cast<BYTE *>(Cache + 24), 11025);
-		WriteLittleLong(reinterpret_cast<BYTE *>(Cache + 28), 11025);
+		WriteNitemareLong(reinterpret_cast<BYTE *>(Cache + 4), RawSize + 36);
+		WriteNitemareLong(reinterpret_cast<BYTE *>(Cache + 24), 11025);
+		WriteNitemareLong(reinterpret_cast<BYTE *>(Cache + 28), 11025);
 		WriteLittleShort(reinterpret_cast<BYTE *>(Cache + 32), 1);
 		WriteLittleShort(reinterpret_cast<BYTE *>(Cache + 34), 8);
-		WriteLittleLong(reinterpret_cast<BYTE *>(Cache + 40), RawSize);
+		WriteNitemareLong(reinterpret_cast<BYTE *>(Cache + 40), RawSize);
 
 		Owner->Reader->Seek(Position, SEEK_SET);
 		Owner->Reader->Read(Cache + 44, RawSize);
@@ -92,7 +100,7 @@ protected:
 		Cache = new char[LumpSize];
 		memset(Cache, 0, LumpSize);
 		memcpy(Cache, "WDC3.1", 6);
-		WriteLittleLong(reinterpret_cast<BYTE *>(Cache + 6), 1);
+		WriteNitemareLong(reinterpret_cast<BYTE *>(Cache + 6), 1);
 		WriteLittleShort(reinterpret_cast<BYTE *>(Cache + 10), Planes);
 		WriteLittleShort(reinterpret_cast<BYTE *>(Cache + 12), 16);
 
