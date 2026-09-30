@@ -39,6 +39,7 @@ initial_sources(
 	resourcefiles/file_audiot.cpp
 	resourcefiles/file_directory.cpp
 	resourcefiles/file_gamemaps.cpp
+	resourcefiles/file_hoverlevel.cpp
 	resourcefiles/file_grp.cpp
 	resourcefiles/file_pak.cpp
 	resourcefiles/file_rff.cpp
