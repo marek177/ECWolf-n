@@ -45,6 +45,7 @@ initial_sources(
 	resourcefiles/file_rtl.cpp
 	resourcefiles/file_lump.cpp
 	resourcefiles/file_macbin.cpp
+	resourcefiles/file_nitemare.cpp
 	resourcefiles/file_vgagraph.cpp
 	resourcefiles/file_vswap.cpp
 	resourcefiles/file_wad.cpp
@@ -61,6 +62,7 @@ initial_sources(
 	textures/imgztexture.cpp
 	textures/jpegtexture.cpp
 	textures/machudtexture.cpp
+	textures/nitemareimgtexture.cpp
 	textures/multipatchtexture.cpp
 	textures/patchtexture.cpp
 	textures/picttexture.cpp
