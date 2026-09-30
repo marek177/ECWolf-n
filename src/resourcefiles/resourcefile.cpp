@@ -234,7 +234,8 @@ FResourceFile *CheckVSwap(const char *filename, FileReader *file, bool quiet);
 FResourceFile *CheckAudiot(const char *filename, FileReader *file, bool quiet);
 FResourceFile *CheckGamemaps(const char *filename, FileReader *file, bool quiet);
 FResourceFile *CheckMacBin(const char *filename, FileReader *file, bool quiet);
-FResourceFile *CheckRtl(const char *filename, FileReader *file, bool quiet);\nFResourceFile *CheckNitemare(const char *filename, FileReader *file, bool quiet);
+FResourceFile *CheckRtl(const char *filename, FileReader *file, bool quiet);
+FResourceFile *CheckNitemare(const char *filename, FileReader *file, bool quiet);
 
 #define COUNTOF_FUNCS 14
 #define EMBEDDABLE_START 8 // Should point to AudioT
