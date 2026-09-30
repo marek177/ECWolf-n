@@ -70,7 +70,8 @@ FTexture *PNGTexture_TryCreate(FileReader &, int lumpnum);
 FTexture *JPEGTexture_TryCreate(FileReader &, int lumpnum);
 FTexture *DDSTexture_TryCreate(FileReader &, int lumpnum);
 FTexture *PCXTexture_TryCreate(FileReader &, int lumpnum);
-FTexture *TGATexture_TryCreate(FileReader &, int lumpnum);\nFTexture *NitemareImgTexture_TryCreate(FileReader &, int lumpnum);
+FTexture *TGATexture_TryCreate(FileReader &, int lumpnum);
+FTexture *NitemareImgTexture_TryCreate(FileReader &, int lumpnum);
 FTexture *RawPageTexture_TryCreate(FileReader &, int lumpnum);
 FTexture *RottFlatTexture_TryCreate(FileReader &, int lumpnum);
 FTexture *FlatTexture_TryCreate(FileReader &, int lumpnum);
@@ -94,6 +95,7 @@ FTexture * FTexture::CreateTexture (int lumpnum, int usetype)
 		{ DDSTexture_TryCreate,			TEX_Any },
 		{ PCXTexture_TryCreate,			TEX_Any },
 		{ TGATexture_TryCreate,			TEX_Any },
+		{ NitemareImgTexture_TryCreate,	TEX_Any },
 		{ RawPageTexture_TryCreate,		TEX_MiscPatch },
 		{ RawPageTexture_TryCreate,		TEX_WallPatch }, // Rott sky
 		{ RottFlatTexture_TryCreate,	TEX_Flat },
