@@ -136,23 +136,62 @@ trailer. The loader exposes:
 This prepares native palette selection without baking a palette into IMG
 conversion.
 
-## Bootstrap sliding doors
+## Nitemare door adapter (timing unverified)
 
-The generated wall translator now promotes only the wall families whose
-orientation and direct-use behavior are already safe to express structurally:
+Ordinary `DOORV/DOORH` and curtain `DOORVC/DOORHC` retain their verified
+visual aliases, slide axis and repeatable directional player-use trigger.
+The trigger now calls `Nitemare_DoorUse` (arg0: 1 vertical, 2 horizontal).
+The former `Door_Open` speed/hold placeholders 16/300 have been removed.
 
-- `DOORV` and `DOORH`,
-- `DOORVC` and `DOORHC` (curtain doors).
+**Current behavior:** the adapter rejects activation and leaves the door
+closed/static, with a diagnostic. This intentionally removes bootstrap map
+traversability until the conversion is established. No thinker, slide amount,
+zone link or sound is changed; no clock conversion is guessed. Locked,
+transportation and remote families remain static as before.
 
-Vertical classes receive ECWolf's vertical slide offset and horizontal classes
-receive the horizontal slide offset. A repeatable player-use `Door_Open`
-trigger is emitted for those raw wall IDs.
+### Evidence and representability
 
-The current ECWolf trigger uses bootstrap speed/hold parameters (16 / 300);
-those values are engine-side placeholders, not claimed original Nitemare
-timing. Locked `DOORVL/HL*`, Transportation Chamber `DOORVI/HI`, and remote
-`DOORVR/HR` families deliberately remain closed/static until their verified
-key/card/remote-control state logic is connected.
+Source: [Nitemare3d-reversed PR #31](https://github.com/marek177/Nitemare3d-reversed/pull/31),
+commit `89d6c852664f2e3d64753c824cc5d79a4b894d12`, specifically
+`docs/REMOTE_DOORS_AND_DOS_CROSSCHECK_2026-09-22.md` and
+`docs/WIN16_DOOR_RUNTIME_LAYOUT_CLOSURE_2026-09-28.md`.
+These are static findings for **Win16 1.10**, not demonstrated DOS parity.
+
+| Rule | Adapter representation | ECWolf generic Door_Open limitation |
+|---|---|---|
+| States 0 open, 1 closed, 2 opening, 3 closing, 4 corpse hold-open | Explicit enum; corpse events are inert | EVDoor has four states and no permanent corpse state |
+| Motion 2 internal units/update | Original-unit constant only | Constructor scales speed by 64; world-unit and update conversion unknown |
+| Completion countdown 32 | Discrete completion event for opening/closing | Generic thinker holds only after opening, destroys on close |
+| Obstructed auto-close retry 4 | Discrete retry event at open/countdown zero | Generic thinker resets wait to full opentics |
+| SFX 0x25/0x26 and latch +0x14 | Explicit request IDs; opening retains latch, closing clears it | Generic sound sequences have no original latch semantics |
+
+`src/nitemare_door_adapter.h` represents those discrete events independently
+of ECWolf's scheduler. It is not a running door simulation or a binary record
+layout. No endpoint, collision criterion, timer decrement order, USE reversal,
+corpse detection or SND resource mapping is inferred. Original sound requests
+are not yet playback calls. The native data bundle does not establish which
+executable version produced the files.
+
+**Unknown:** exact simulation time, world-unit projection to slide geometry,
+original obstruction/corpse detection integration and build-specific parity.
+Before enabling the runtime, capture Win16 1.10 traces of completed opening,
+closing, obstructed expiry and corpse hold-open; measure update cadence and
+wall displacement, then verify their mapping to ECWolf ticks and geometry.
+
+### Regression checks
+
+Run from the repository root:
+
+```sh
+c++ -std=c++98 -Wall -Wextra -Werror -I src tests/nitemare_door_adapter_test.cpp -o /tmp/nitemare-door-test
+/tmp/nitemare-door-test
+python3 tests/check_nitemare_door_integration.py
+```
+
+The executable checks discrete events, latch retention/consumption, corpse
+inertness and the disabled activation gate. Integration guards check generated
+special wiring and prevent delegation to EVDoor or bootstrap values. These
+checks do not establish original-runtime timing or full-engine build success.
 
 ## Generated bootstrap object actors
 

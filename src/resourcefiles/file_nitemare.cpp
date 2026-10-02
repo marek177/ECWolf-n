@@ -90,7 +90,7 @@ static bool IsOpenWallDefinitionClass(const char *begin, const char *end)
 		DefinitionTokenEquals(begin, end, "TRIGGER2");
 }
 
-static int BootstrapDoorAxis(const char *begin, const char *end)
+static int NitemareDoorAxis(const char *begin, const char *end)
 {
 	if(DefinitionTokenEquals(begin, end, "DOORV") ||
 		DefinitionTokenEquals(begin, end, "DOORVC"))
@@ -237,20 +237,19 @@ static bool BuildDefinitionXlat(FileReader *reader, int episode, bool walls, FSt
 					FString texture;
 					texture.Format("N%dW%02X", episode, id);
 
-					const int doorAxis = BootstrapDoorAxis(classBegin, classEnd);
+					const int doorAxis = NitemareDoorAxis(classBegin, classEnd);
 					if(doorAxis != 0)
 					{
 						FString trigger;
 						trigger.Format(
 							"\ttrigger %u\n\t{\n"
-							"\t\taction = \"Door_Open\";\n"
-							"\t\targ1 = 16;\n"
-							"\t\targ2 = 300;\n"
+							"\t\taction = \"Nitemare_DoorUse\";\n"
+							"\t\targ0 = %d;\n"
 							"\t\tplayeruse = true;\n"
 							"\t\trepeatable = true;\n"
 							"%s"
 							"\t}\n",
-							id,
+							id, doorAxis,
 							doorAxis == 1 ?
 								"\t\tactivatenorth = false;\n\t\tactivatesouth = false;\n" :
 								"\t\tactivateeast = false;\n\t\tactivatewest = false;\n");
