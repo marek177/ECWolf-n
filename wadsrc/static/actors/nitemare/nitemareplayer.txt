@@ -1,0 +1,14 @@
+actor NitemarePlayer : PlayerPawn
+{
+	health 100
+	radius 27
+	player.movebob 0
+	player.viewheight 32
+	player.displayname "Nitemare 3D Player"
+	states
+	{
+		Spawn:
+			TNT1 A -1
+			stop
+	}
+}
