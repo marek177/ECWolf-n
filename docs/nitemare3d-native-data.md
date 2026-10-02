@@ -23,8 +23,17 @@ A dedicated ECWolf texture decoder understands the Nitemare image record:
   texture layout.
 
 Sprite transparency index 31 is supported when an IMG record is explicitly
-placed in the sprite namespace. The physical records are intentionally exposed
-as graphics until the wall/object sequence tables are fully mapped.
+placed in the sprite namespace.
+
+The two 256-entry IMG directories are also resolved against exact physical
+frame boundaries:
+
+- wall resource ID XX -> `textures/NxWXX.n3i`,
+- object resource ID XX -> first-frame sprite alias `sprites/NxXXA0.n3i`.
+
+The object alias uses an ECWolf-compatible four-character sprite stem followed
+by frame A / rotation 0. Only exact directory-to-frame matches are aliased;
+sequence-bank timing and subsequent animation frames remain a separate layer.
 
 ### MAP.1 / MAP.2 / MAP.3
 
@@ -134,7 +143,7 @@ object, combat or special-wall semantics into engine behavior.
 The next step toward a playable Nitemare 3D game definition is:
 
 1. generate a Nitemare-specific xlat from the now-loaded WALLS.1-3 and OBJECTS.1-3 catalogs,
-2. resolve IMG wall/object sequence slots to named textures/sprites,
+2. expand the new IMG resource aliases into complete wall/object animation sequences,
 3. register Nitemare as a selectable game bundle in wl_iwad.cpp/IWADINFO,
 4. map SND.DAT slot IDs into SNDINFO and music definitions,
 5. wire ENDING.FLI playback,
