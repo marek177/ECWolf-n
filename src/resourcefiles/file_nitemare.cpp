@@ -90,7 +90,42 @@ static bool IsOpenWallDefinitionClass(const char *begin, const char *end)
 		DefinitionTokenEquals(begin, end, "TRIGGER2");
 }
 
-static bool BuildDefinitionXlat(FileReader *reader, int episode, bool walls, FString &xlat)
+static int RecoveredObjectClassCode(const char *begin, const char *end)
+{
+	if(end - begin > 5 && strnicmp(begin, "GUARD", 5) == 0)
+	{
+		int number = 0;
+		for(const char *p = begin + 5; p != end; ++p)
+		{
+			if(*p < '0' || *p > '9')
+				return -1;
+			number = number * 10 + (*p - '0');
+		}
+		if(number >= 1 && number <= 26)
+			return 0x07 + number;
+	}
+
+	if(DefinitionTokenEquals(begin, end, "CAUSTIC")) return 0x07;
+	if(DefinitionTokenEquals(begin, end, "SAFE")) return 0x26;
+	if(DefinitionTokenEquals(begin, end, "TRUNK")) return 0x27;
+	if(DefinitionTokenEquals(begin, end, "PUSH")) return 0x28;
+	if(DefinitionTokenEquals(begin, end, "ACTION")) return 0x29;
+	if(DefinitionTokenEquals(begin, end, "PERMEABLE")) return 0x2A;
+	if(DefinitionTokenEquals(begin, end, "DUMB")) return 0x2B;
+	if(DefinitionTokenEquals(begin, end, "ELEVATED")) return 0x2E;
+	if(DefinitionTokenEquals(begin, end, "KEY")) return 0x2F;
+	if(DefinitionTokenEquals(begin, end, "IDCARD")) return 0x30;
+	if(DefinitionTokenEquals(begin, end, "FOOD")) return 0x33;
+	if(DefinitionTokenEquals(begin, end, "WEAPON")) return 0x36;
+	if(DefinitionTokenEquals(begin, end, "AMMO")) return 0x39;
+	if(DefinitionTokenEquals(begin, end, "CRYSTALB")) return 0x3A;
+	if(DefinitionTokenEquals(begin, end, "MAGICEYE")) return 0x3B;
+	if(DefinitionTokenEquals(begin, end, "PENTAGRAM")) return 0x3C;
+	if(DefinitionTokenEquals(begin, end, "SCROLL")) return 0x3D;
+	return -1;
+}
+
+static bool BuildDefinitionXlat(FileReader *reader, int episode, bool walls, FString &xlat, FString *decorate)
 {
 	const long length = reader->GetLength();
 	if(length <= 0)
@@ -108,7 +143,11 @@ static bool BuildDefinitionXlat(FileReader *reader, int episode, bool walls, FSt
 	if(walls)
 		xlat.Format("include \"N%dOXLAT\"\n\ntiles\n{\n", episode);
 	else
+	{
 		xlat = "things\n{\n";
+		if(decorate != NULL)
+			decorate->Truncate(0);
+	}
 
 	char *p = data;
 	char *end = data + length;
@@ -199,13 +238,55 @@ static bool BuildDefinitionXlat(FileReader *reader, int episode, bool walls, FSt
 				xlat += lineText;
 			}
 		}
-		else if(!playerStartWritten &&
-			id == 1 && DefinitionTokenEquals(classBegin, classEnd, "START"))
+		else
 		{
-			// Nitemare uses IDs 1..4 for N/E/S/W starts, the same four-way
-			// ordered range expected by ECWolf's player-start translation.
-			xlat += "\t{1, $Player1Start, 4, 0, 0}\n";
-			playerStartWritten = true;
+			if(DefinitionTokenEquals(classBegin, classEnd, "START"))
+			{
+				if(!playerStartWritten && id == 1)
+				{
+					// Nitemare uses IDs 1..4 for N/E/S/W starts, the same four-way
+					// ordered range expected by ECWolf's player-start translation.
+					xlat += "\t{1, $Player1Start, 4, 0, 0}\n";
+					playerStartWritten = true;
+				}
+			}
+			else
+			{
+				const int objectClass = RecoveredObjectClassCode(classBegin, classEnd);
+				if(id != 0 && objectClass >= 0x06)
+				{
+					FString actorName;
+					actorName.Format("N3DE%dO%02X", episode, id);
+
+					FString xlatLine;
+					xlatLine.Format("\t{%u, %s, 0, 0, 0}\n", id, actorName.GetChars());
+					xlat += xlatLine;
+
+					if(decorate != NULL)
+					{
+						FString sprite;
+						sprite.Format("N%d%02X", episode, id);
+
+						FString actor;
+						actor.Format(
+							"actor %s\n"
+							"{\n"
+							"\tradius 32\n"
+							"%s"
+							"\tstates\n"
+							"\t{\n"
+							"\t\tSpawn:\n"
+							"\t\t\t%s A -1\n"
+							"\t\t\tstop\n"
+							"\t}\n"
+							"}\n\n",
+							actorName.GetChars(),
+							(objectClass >= 0x08 && objectClass <= 0x2D) ? "\t+SOLID\n" : "",
+							sprite.GetChars());
+						*decorate += actor;
+					}
+				}
+			}
 		}
 
 		++records;
@@ -556,7 +637,8 @@ private:
 	{
 		const long length = Reader->GetLength();
 		FString xlat;
-		if(length <= 0 || !BuildDefinitionXlat(Reader, episode, walls, xlat))
+		FString decorate;
+		if(length <= 0 || !BuildDefinitionXlat(Reader, episode, walls, xlat, walls ? NULL : &decorate))
 			return false;
 
 		FString marker;
@@ -570,6 +652,9 @@ private:
 		FString xlatName;
 		xlatName.Format(walls ? "N%dWXLAT" : "N%dOXLAT", episode);
 		AddMemory(xlatName, xlat);
+
+		if(!walls && decorate.IsNotEmpty())
+			AddMemory("DECORATE", decorate);
 		return true;
 	}
 

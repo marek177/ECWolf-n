@@ -136,6 +136,28 @@ trailer. The loader exposes:
 This prepares native palette selection without baking a palette into IMG
 conversion.
 
+## Generated bootstrap object actors
+
+OBJECTS.1-3 now generate a DECORATE lump at load time for object classes whose
+runtime class mapping is already established by the executable audit.
+
+Each translated raw object ID gets an episode-specific actor class
+(`N3DE1Oxx`, `N3DE2Oxx`, `N3DE3Oxx`) whose Spawn state points at the
+matching first-frame IMG sprite alias `N?xxA0`. The generated OXLAT maps the
+original object byte directly to that actor.
+
+The current generated actor layer covers the documented GUARD families plus
+CAUSTIC, SAFE, TRUNK, PUSH, ACTION, PERMEABLE, DUMB, ELEVATED, KEY, IDCARD,
+FOOD, WEAPON, AMMO, CRYSTALB, MAGICEYE, PENTAGRAM and SCROLL classes when
+those names are present in the episode definition table.
+
+Collision uses one directly recovered property rule: mapped object classes
+0x08..0x2D receive a 32-unit-radius solid placeholder. Classes outside that
+verified blocking range remain non-solid. This gets the object plane into the
+map and preserves the original broad blocking/non-blocking split, but it does
+not yet implement GUARD AI, pickups, push movement, safe/trunk interaction,
+caustic damage or animation sequences.
+
 ## Experimental game bundle
 
 The engine can now collect a native Nitemare 3D installation as one game bundle
@@ -191,11 +213,11 @@ The next step toward a playable Nitemare 3D game definition is:
 
 1. extend the generated bootstrap xlat with executable-verified doors, warps, exits, triggers and object classes,
 2. expand the new IMG resource aliases into complete wall/object animation sequences,
-3. replace the bootstrap player with the complete Nitemare player, inventory and weapon runtime,
-4. map SND.DAT slot IDs into SNDINFO and music definitions,
-5. wire ENDING.FLI playback,
-6. add Nitemare actors, weapons, doors/warps, collision and special-wall
-   behavior from the executable reverse-engineering results.
+3. replace generated placeholder actors with the recovered GUARD/pickup/push/special-object runtimes,
+4. replace the bootstrap player with the complete Nitemare player, inventory and weapon runtime,
+5. map SND.DAT slot IDs into SNDINFO and music definitions,
+6. wire ENDING.FLI playback,
+7. complete doors/warps, collision and special-wall behavior from the executable reverse-engineering results.
 
 This resource layer is intentionally usable before those gameplay semantics are
 complete.
