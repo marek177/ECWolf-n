@@ -136,6 +136,24 @@ trailer. The loader exposes:
 This prepares native palette selection without baking a palette into IMG
 conversion.
 
+## Bootstrap sliding doors
+
+The generated wall translator now promotes only the wall families whose
+orientation and direct-use behavior are already safe to express structurally:
+
+- `DOORV` and `DOORH`,
+- `DOORVC` and `DOORHC` (curtain doors).
+
+Vertical classes receive ECWolf's vertical slide offset and horizontal classes
+receive the horizontal slide offset. A repeatable player-use `Door_Open`
+trigger is emitted for those raw wall IDs.
+
+The current ECWolf trigger uses bootstrap speed/hold parameters (16 / 300);
+those values are engine-side placeholders, not claimed original Nitemare
+timing. Locked `DOORVL/HL*`, Transportation Chamber `DOORVI/HI`, and remote
+`DOORVR/HR` families deliberately remain closed/static until their verified
+key/card/remote-control state logic is connected.
+
 ## Generated bootstrap object actors
 
 OBJECTS.1-3 now generate a DECORATE lump at load time for object classes whose
