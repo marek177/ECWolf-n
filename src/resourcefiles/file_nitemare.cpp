@@ -130,10 +130,13 @@ static bool DefinitionRangeContainsNoCase(const char *begin, const char *end, co
 
 static int BootstrapColorLock(const char *begin, const char *end)
 {
-	if(DefinitionRangeContainsNoCase(begin, end, "red key")) return 201;
-	if(DefinitionRangeContainsNoCase(begin, end, "green key")) return 202;
-	if(DefinitionRangeContainsNoCase(begin, end, "blue key")) return 203;
-	if(DefinitionRangeContainsNoCase(begin, end, "yellow key")) return 204;
+	// Called only for the verified colored locked-door families. Different
+	// episode catalogs spell the same variants as "red key", "Locked Red Door"
+	// or "red - locked", so the color word itself is the stable discriminator.
+	if(DefinitionRangeContainsNoCase(begin, end, "red")) return 201;
+	if(DefinitionRangeContainsNoCase(begin, end, "green")) return 202;
+	if(DefinitionRangeContainsNoCase(begin, end, "blue")) return 203;
+	if(DefinitionRangeContainsNoCase(begin, end, "yellow")) return 204;
 	return 0;
 }
 
