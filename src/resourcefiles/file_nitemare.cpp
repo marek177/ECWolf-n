@@ -149,6 +149,63 @@ static int BootstrapKeyPassageLock(const char *begin, const char *end)
 	return 0;
 }
 
+static int BootstrapClimbGroup(const char *begin, const char *end)
+{
+	if(end - begin == 6 && strnicmp(begin, "WARP_", 5) == 0 &&
+		begin[5] >= '1' && begin[5] <= '8')
+		return begin[5] - '0';
+	return 0;
+}
+
+static int DefinitionIdClimbGroup(const char *data, long length, unsigned int wantedId)
+{
+	const char *p = data;
+	const char *end = data + length;
+	while(p < end)
+	{
+		const char *line = p;
+		while(p < end && *p != '\n')
+			++p;
+		const char *lineEnd = p;
+		if(p < end)
+			++p;
+
+		if(lineEnd > line && lineEnd[-1] == '\r')
+			--lineEnd;
+		while(line < lineEnd && IsDefinitionSpace(*line))
+			++line;
+		while(lineEnd > line && IsDefinitionSpace(lineEnd[-1]))
+			--lineEnd;
+		if(line == lineEnd)
+			continue;
+
+		const char *tokens[8];
+		const char *scan = line;
+		bool complete = true;
+		for(int field = 0; field < 4; ++field)
+		{
+			while(scan < lineEnd && IsDefinitionSpace(*scan))
+				++scan;
+			if(scan == lineEnd)
+			{
+				complete = false;
+				break;
+			}
+			tokens[field * 2] = scan;
+			while(scan < lineEnd && !IsDefinitionSpace(*scan))
+				++scan;
+			tokens[field * 2 + 1] = scan;
+		}
+		if(!complete)
+			continue;
+
+		unsigned int id;
+		if(ParseDefinitionId(tokens[0], tokens[1], id) && id == wantedId)
+			return BootstrapClimbGroup(tokens[6], tokens[7]);
+	}
+	return 0;
+}
+
 static int RecoveredObjectClassCode(const char *begin, const char *end)
 {
 	if(end - begin > 5 && strnicmp(begin, "GUARD", 5) == 0)
@@ -287,6 +344,29 @@ static bool BuildDefinitionXlat(FileReader *reader, int episode, bool walls, FSt
 				{
 					FString texture;
 					texture.Format("N%dW%02X", episode, id);
+
+					const int climbGroup = BootstrapClimbGroup(classBegin, classEnd);
+					if(climbGroup != 0)
+					{
+						const bool canUp = id < 0xFF &&
+							DefinitionIdClimbGroup(data, length, id + 1) == climbGroup;
+						const bool canDown = id > 0 &&
+							DefinitionIdClimbGroup(data, length, id - 1) == climbGroup;
+						if(canUp || canDown)
+						{
+							FString climbTrigger;
+							climbTrigger.Format(
+								"\ttrigger %u\n\t{\n"
+								"\t\taction = \"Nitemare_ClimbWarp\";\n"
+								"\t\targ0 = %u;\n"
+								"\t\targ1 = %d;\n"
+								"\t\targ2 = %d;\n"
+								"\t\tplayeruse = true;\n"
+								"\t}\n",
+								id, id, canUp ? 1 : 0, canDown ? 1 : 0);
+							xlat += climbTrigger;
+						}
+					}
 
 					const int keyPassageLock = BootstrapKeyPassageLock(classBegin, classEnd);
 					if(keyPassageLock != 0)
