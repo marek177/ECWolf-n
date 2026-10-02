@@ -136,6 +136,19 @@ trailer. The loader exposes:
 This prepares native palette selection without baking a palette into IMG
 conversion.
 
+## Level gateways
+
+The generated wall translator now handles the two verified level-gateway
+families:
+
+- `LEVEL_UP` -> ECWolf `Exit_Normal` on player USE,
+- `LEVEL_UP2` -> a Nitemare-specific `Nitemare_LevelUp2` special.
+
+`Nitemare_LevelUp2` is restricted to the Nitemare3D game family and resolves
+the current MAPINFO `LevelNumber`, then transitions directly to
+`LevelNumber + 2` through ECWolf's normal `ex_newmap` path. This preserves
+the documented "skip a level" meaning without abusing secret-exit semantics.
+
 ## Colored keys and locked doors
 
 The bootstrap now uses ECWolf's native Key/LOCKDEFS system for the six
