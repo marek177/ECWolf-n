@@ -37,7 +37,6 @@ adddefaultmap
 {
 	defaultfloor = "#000000"
 	defaultceiling = "#000000"
-	forcetally = false
 }
 
 episode "N1M01"
