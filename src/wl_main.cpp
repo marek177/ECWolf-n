@@ -441,7 +441,14 @@ static void InitGame()
 
 	TexMan.Init();
 	printf("VL_ReadPalette: Setting up the Palette...\n");
-	VL_ReadPalette(gameinfo.GamePalette);
+	if(IWad::CheckGameFilter("Nitemare3D") && Wads.CheckNumForName(gameinfo.GamePalette) < 0)
+	{
+		Printf("Nitemare 3D: %s is unavailable, using WOLFPAL bootstrap fallback.\n",
+			gameinfo.GamePalette.GetChars());
+		VL_ReadPalette("WOLFPAL");
+	}
+	else
+		VL_ReadPalette(gameinfo.GamePalette);
 	atterm(R_DeinitColormaps);
 	GenerateLookupTables();
 
