@@ -73,7 +73,24 @@ static bool ParseDefinitionId(const char *begin, const char *end, unsigned int &
 	return true;
 }
 
-static bool ValidateDefinitionTable(FileReader *reader)
+static bool DefinitionTokenEquals(const char *begin, const char *end, const char *text)
+{
+	const size_t length = static_cast<size_t>(end - begin);
+	return strlen(text) == length && strnicmp(begin, text, length) == 0;
+}
+
+static bool IsOpenWallDefinitionClass(const char *begin, const char *end)
+{
+	return DefinitionTokenEquals(begin, end, "FLOOR") ||
+		DefinitionTokenEquals(begin, end, "TURN") ||
+		DefinitionTokenEquals(begin, end, "RETREAT") ||
+		DefinitionTokenEquals(begin, end, "SAFESPOT") ||
+		DefinitionTokenEquals(begin, end, "ACTIONSPOT") ||
+		DefinitionTokenEquals(begin, end, "TRIGGER1") ||
+		DefinitionTokenEquals(begin, end, "TRIGGER2");
+}
+
+static bool BuildDefinitionXlat(FileReader *reader, int episode, bool walls, FString &xlat)
 {
 	const long length = reader->GetLength();
 	if(length <= 0)
@@ -88,10 +105,16 @@ static bool ValidateDefinitionTable(FileReader *reader)
 	}
 	data[length] = 0;
 
+	if(walls)
+		xlat.Format("include \"N%dOXLAT\"\n\ntiles\n{\n", episode);
+	else
+		xlat = "things\n{\n";
+
 	char *p = data;
 	char *end = data + length;
 	unsigned int records = 0;
 	bool valid = true;
+	bool playerStartWritten = false;
 
 	while(p < end && valid)
 	{
@@ -147,12 +170,69 @@ static bool ValidateDefinitionTable(FileReader *reader)
 			break;
 		}
 
+		const char *classBegin = tokens[6];
+		const char *classEnd = tokens[7];
+
+		if(walls)
+		{
+			if(id != 0 && !DefinitionTokenEquals(classBegin, classEnd, "NULL"))
+			{
+				FString lineText;
+				if(IsOpenWallDefinitionClass(classBegin, classEnd))
+				{
+					lineText.Format("\tzone %u {}\n", id);
+				}
+				else
+				{
+					FString texture;
+					texture.Format("N%dW%02X", episode, id);
+					lineText.Format(
+						"\ttile %u\n\t{\n"
+						"\t\ttexturenorth = \"%s\";\n"
+						"\t\ttexturesouth = \"%s\";\n"
+						"\t\ttextureeast = \"%s\";\n"
+						"\t\ttexturewest = \"%s\";\n"
+						"\t}\n",
+						id, texture.GetChars(), texture.GetChars(),
+						texture.GetChars(), texture.GetChars());
+				}
+				xlat += lineText;
+			}
+		}
+		else if(!playerStartWritten &&
+			id == 1 && DefinitionTokenEquals(classBegin, classEnd, "START"))
+		{
+			// Nitemare uses IDs 1..4 for N/E/S/W starts, the same four-way
+			// ordered range expected by ECWolf's player-start translation.
+			xlat += "\t{1, $Player1Start, 4, 0, 0}\n";
+			playerStartWritten = true;
+		}
+
 		++records;
 	}
 
 	delete[] data;
-	return valid && records != 0;
+	if(!valid || records == 0)
+		return false;
+
+	xlat += "}\n";
+	return true;
 }
+
+class FNitemareMemoryLump : public FResourceLump
+{
+public:
+	FString Data;
+
+protected:
+	int FillCache()
+	{
+		Cache = new char[LumpSize];
+		memcpy(Cache, Data.GetChars(), LumpSize);
+		RefCount = 1;
+		return 1;
+	}
+};
 
 class FNitemarePcmLump : public FResourceLump
 {
@@ -310,6 +390,16 @@ private:
 		AddRaw(name, 0, 0);
 	}
 
+	void AddMemory(const FString &name, const FString &data)
+	{
+		FNitemareMemoryLump *lump = new FNitemareMemoryLump;
+		lump->Owner = this;
+		lump->Data = data;
+		lump->LumpSize = data.Len();
+		lump->LumpNameSetup(name);
+		Lumps.Push(lump);
+	}
+
 	void AddPcm(const FString &name, int position, int size)
 	{
 		FNitemarePcmLump *lump = new FNitemarePcmLump;
@@ -465,7 +555,8 @@ private:
 	bool OpenDefinitions(int episode, bool walls)
 	{
 		const long length = Reader->GetLength();
-		if(length <= 0 || !ValidateDefinitionTable(Reader))
+		FString xlat;
+		if(length <= 0 || !BuildDefinitionXlat(Reader, episode, walls, xlat))
 			return false;
 
 		FString marker;
@@ -475,6 +566,10 @@ private:
 		FString tableName;
 		tableName.Format(walls ? "N%dWDEF" : "N%dODEF", episode);
 		AddRaw(tableName, 0, static_cast<int>(length));
+
+		FString xlatName;
+		xlatName.Format(walls ? "N%dWXLAT" : "N%dOXLAT", episode);
+		AddMemory(xlatName, xlat);
 		return true;
 	}
 
