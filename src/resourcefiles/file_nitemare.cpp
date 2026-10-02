@@ -404,7 +404,7 @@ private:
 
 					FString alias;
 					if(objectDirectory)
-						alias.Format("sprites/N%dO%02X.n3i", episode, id);
+						alias.Format("sprites/N%d%02XA0.n3i", episode, id);
 					else
 						alias.Format("textures/N%dW%02X.n3i", episode, id);
 
