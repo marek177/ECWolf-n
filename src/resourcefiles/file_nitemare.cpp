@@ -323,17 +323,20 @@ private:
 
 	bool OpenImg(int episode)
 	{
+		static const int DirectoryBytes = 0x800;
+		static const int DirectoryEntries = 256;
+
 		const long length = Reader->GetLength();
-		if(length < 14)
+		if(length < DirectoryBytes)
 			return false;
 
-		BYTE head[8];
+		BYTE directories[DirectoryBytes];
 		Reader->Seek(0, SEEK_SET);
-		if(Reader->Read(head, sizeof(head)) != sizeof(head))
+		if(Reader->Read(directories, sizeof(directories)) != sizeof(directories))
 			return false;
 
-		const DWORD firstData = ReadLittleLong(head + 4);
-		if(firstData < 0x800 || firstData >= static_cast<DWORD>(length))
+		const DWORD firstData = ReadLittleLong(directories + 4);
+		if(firstData < DirectoryBytes || firstData >= static_cast<DWORD>(length))
 			return false;
 
 		FString marker;
@@ -343,6 +346,9 @@ private:
 		FString headerName;
 		headerName.Format("N%dIHDR", episode);
 		AddRaw(headerName, 0, static_cast<int>(firstData));
+
+		TArray<DWORD> framePositions;
+		TArray<DWORD> frameSizes;
 
 		DWORD pos = firstData;
 		unsigned int frame = 0;
@@ -368,12 +374,47 @@ private:
 			FString frameName;
 			frameName.Format("graphics/N%dI%04u.n3i", episode, frame);
 			AddRaw(frameName, static_cast<int>(pos), static_cast<int>(frameSize));
+			framePositions.Push(pos);
+			frameSizes.Push(frameSize);
 
 			pos += frameSize;
 			++frame;
 		}
 
-		return frame > 0;
+		if(frame == 0)
+			return false;
+
+		// The first 256 dwords are the wall-image directory and the second
+		// 256 dwords are the object-image directory. Only create an alias when
+		// the directory offset points at an exact physical frame boundary.
+		// This keeps uncertain sequence-bank semantics out of the resource layer.
+		for(int objectDirectory = 0; objectDirectory <= 1; ++objectDirectory)
+		{
+			const int directoryBase = objectDirectory ? 0x400 : 0;
+			for(int id = 0; id < DirectoryEntries; ++id)
+			{
+				const DWORD imageOffset = ReadLittleLong(directories + directoryBase + id * 4);
+				if(imageOffset < firstData || imageOffset >= static_cast<DWORD>(length))
+					continue;
+
+				for(unsigned int f = 0; f < framePositions.Size(); ++f)
+				{
+					if(framePositions[f] != imageOffset)
+						continue;
+
+					FString alias;
+					if(objectDirectory)
+						alias.Format("sprites/N%d%02XA0.n3i", episode, id);
+					else
+						alias.Format("textures/N%dW%02X.n3i", episode, id);
+
+					AddRaw(alias, static_cast<int>(imageOffset), static_cast<int>(frameSizes[f]));
+					break;
+				}
+			}
+		}
+
+		return true;
 	}
 
 	bool OpenMap(int episode)
