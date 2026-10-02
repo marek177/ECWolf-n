@@ -279,6 +279,21 @@ static bool BuildDefinitionXlat(FileReader *reader, int episode, bool walls, FSt
 					FString texture;
 					texture.Format("N%dW%02X", episode, id);
 
+					if(DefinitionTokenEquals(classBegin, classEnd, "LEVEL_UP") ||
+						DefinitionTokenEquals(classBegin, classEnd, "LEVEL_UP2"))
+					{
+						FString exitTrigger;
+						exitTrigger.Format(
+							"\ttrigger %u\n\t{\n"
+							"\t\taction = \"%s\";\n"
+							"\t\tplayeruse = true;\n"
+							"\t}\n",
+							id,
+							DefinitionTokenEquals(classBegin, classEnd, "LEVEL_UP2") ?
+								"Nitemare_LevelUp2" : "Exit_Normal");
+						xlat += exitTrigger;
+					}
+
 					const int ordinaryDoorAxis = BootstrapDoorAxis(classBegin, classEnd);
 					const int lockedDoorAxis = BootstrapLockedDoorAxis(classBegin, classEnd);
 					const int doorAxis = ordinaryDoorAxis != 0 ? ordinaryDoorAxis : lockedDoorAxis;
