@@ -348,24 +348,28 @@ static bool BuildDefinitionXlat(FileReader *reader, int episode, bool walls, FSt
 					const int climbGroup = BootstrapClimbGroup(classBegin, classEnd);
 					if(climbGroup != 0)
 					{
-						const bool canUp = id < 0xFF &&
-							DefinitionIdClimbGroup(data, length, id + 1) == climbGroup;
-						const bool canDown = id > 0 &&
-							DefinitionIdClimbGroup(data, length, id - 1) == climbGroup;
-						if(canUp || canDown)
+						unsigned int minId = id;
+						unsigned int maxId = id;
+						for(unsigned int candidate = 0; candidate <= 0xFF; ++candidate)
 						{
-							FString climbTrigger;
-							climbTrigger.Format(
-								"\ttrigger %u\n\t{\n"
-								"\t\taction = \"Nitemare_ClimbWarp\";\n"
-								"\t\targ0 = %u;\n"
-								"\t\targ1 = %d;\n"
-								"\t\targ2 = %d;\n"
-								"\t\tplayeruse = true;\n"
-								"\t}\n",
-								id, id, canUp ? 1 : 0, canDown ? 1 : 0);
-							xlat += climbTrigger;
+							if(DefinitionIdClimbGroup(data, length, candidate) == climbGroup)
+							{
+								if(candidate < minId) minId = candidate;
+								if(candidate > maxId) maxId = candidate;
+							}
 						}
+
+						FString climbTrigger;
+						climbTrigger.Format(
+							"\ttrigger %u\n\t{\n"
+							"\t\taction = \"Nitemare_ClimbWarp\";\n"
+							"\t\targ0 = %u;\n"
+							"\t\targ1 = %u;\n"
+							"\t\targ2 = %u;\n"
+							"\t\tplayeruse = true;\n"
+							"\t}\n",
+							id, id, minId, maxId);
+						xlat += climbTrigger;
 					}
 
 					const int keyPassageLock = BootstrapKeyPassageLock(classBegin, classEnd);
