@@ -1,5 +1,15 @@
 IWad
 {
+	Name = "Nitemare 3D (Experimental)"
+	Autoname = "Nitemare3D"
+	Mapinfo = "mapinfo/nitemare3d.txt"
+	MustContain = "NITIMG1", "NITIMG2", "NITIMG3", "N1M01", "N2M01", "N3M01", "NITWAL1", "NITWAL2", "NITWAL3", "NITOBJ1", "NITOBJ2", "NITOBJ3"
+	Flags = Preview
+	Game = "Nitemare3D"
+}
+
+IWad
+{
 	Name = "Super 3D Noah's Ark"
 	Autoname = "Noah"
 	Mapinfo = "mapinfo/noah.txt"
