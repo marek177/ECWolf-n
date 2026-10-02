@@ -75,3 +75,74 @@ Lock 101 Blake
 	YellowAccessKey
 	BlueAccessKey
 }
+
+
+// Nitemare 3D locks. Each raw pickup class is episode-specific because the
+// original object graphics live in IMG.1/2/3, so each lock accepts the same
+// logical item from any episode.
+
+Lock 201 Nitemare3D
+{
+	ANY
+	{
+		N3DE1O05
+		N3DE2O05
+		N3DE3O05
+	}
+	MESSAGE "You need the Red key."
+}
+
+Lock 202 Nitemare3D
+{
+	ANY
+	{
+		N3DE1O06
+		N3DE2O06
+		N3DE3O06
+	}
+	MESSAGE "You need the Green key."
+}
+
+Lock 203 Nitemare3D
+{
+	ANY
+	{
+		N3DE1O07
+		N3DE2O07
+		N3DE3O07
+	}
+	MESSAGE "You need the Blue key."
+}
+
+Lock 204 Nitemare3D
+{
+	ANY
+	{
+		N3DE1O08
+		N3DE2O08
+		N3DE3O08
+	}
+	MESSAGE "You need the Yellow key."
+}
+
+Lock 205 Nitemare3D
+{
+	ANY
+	{
+		N3DE1O09
+		N3DE2O09
+		N3DE3O09
+	}
+	MESSAGE "You need the Red ID card."
+}
+
+Lock 206 Nitemare3D
+{
+	ANY
+	{
+		N3DE1O0A
+		N3DE2O0A
+		N3DE3O0A
+	}
+	MESSAGE "You need the Yellow ID card."
+}
