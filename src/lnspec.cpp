@@ -46,6 +46,7 @@
 #include "wl_draw.h"
 #include "wl_game.h"
 #include "wl_loadsave.h"
+#include "wl_menu.h"
 #include "wl_play.h"
 #include "g_mapinfo.h"
 #include "g_shared/a_keys.h"
@@ -969,19 +970,10 @@ FUNC(Nitemare_LevelUp2)
 	return 1;
 }
 
-FUNC(Nitemare_KeyPassage)
+static int NitemareTeleportFromWallSpot(MapSpot target, AActor *activator)
 {
-	if(!IWad::CheckGameFilter("Nitemare3D") || spot == NULL ||
-		activator == NULL || activator->player == NULL)
+	if(target == NULL || activator == NULL)
 		return 0;
-
-	if(control[activator->player->GetPlayerNum()].buttonheld[bt_use])
-		return 0;
-
-	if(args[0] != 0 && !P_CheckKeys(activator, args[0], false))
-		return 0;
-
-	control[activator->player->GetPlayerNum()].buttonheld[bt_use] = true;
 
 	static const MapTile::Side searchOrder[4] = {
 		MapTile::North, MapTile::East, MapTile::South, MapTile::West
@@ -992,7 +984,7 @@ FUNC(Nitemare_KeyPassage)
 
 	for(unsigned int i = 0; i < 4; ++i)
 	{
-		MapSpot candidate = spot->GetAdjacent(searchOrder[i]);
+		MapSpot candidate = target->GetAdjacent(searchOrder[i]);
 		if(candidate == NULL)
 			continue;
 
@@ -1001,9 +993,6 @@ FUNC(Nitemare_KeyPassage)
 		if(x == activator->tilex && y == activator->tiley)
 			continue;
 
-		// The original helper rejects wall/object property bit 0x02.
-		// In the bootstrap map this corresponds to any translated wall tile
-		// and the generated +SOLID object actors.
 		if(candidate->tile != NULL)
 			continue;
 
@@ -1027,6 +1016,91 @@ FUNC(Nitemare_KeyPassage)
 	}
 
 	return 0;
+}
+
+static MapSpot NitemareFindWallDeltaTarget(MapSpot source, unsigned int rawWallId, int delta)
+{
+	if(source == NULL || source->tile == NULL || source->plane == NULL ||
+		source->plane->gm == NULL)
+		return NULL;
+
+	const GameMap *gm = source->plane->gm;
+	const unsigned int currentIndex = gm->GetTileIndex(source->tile);
+	if(rawWallId < currentIndex)
+		return NULL;
+
+	const unsigned int tileStart = rawWallId - currentIndex;
+	const int targetRaw = static_cast<int>(rawWallId) + delta;
+	if(targetRaw < 0 || targetRaw > 255 || static_cast<unsigned int>(targetRaw) < tileStart)
+		return NULL;
+
+	const unsigned int targetIndex = static_cast<unsigned int>(targetRaw) - tileStart;
+	const GameMap::Header &header = gm->GetHeader();
+	for(unsigned int y = 0; y < header.height; ++y)
+	{
+		for(unsigned int x = 0; x < header.width; ++x)
+		{
+			MapSpot candidate = gm->GetSpot(x, y, 0);
+			if(candidate->tile != NULL && gm->GetTileIndex(candidate->tile) == targetIndex)
+				return candidate;
+		}
+	}
+	return NULL;
+}
+
+FUNC(Nitemare_KeyPassage)
+{
+	if(!IWad::CheckGameFilter("Nitemare3D") || spot == NULL ||
+		activator == NULL || activator->player == NULL)
+		return 0;
+
+	if(control[activator->player->GetPlayerNum()].buttonheld[bt_use])
+		return 0;
+
+	if(args[0] != 0 && !P_CheckKeys(activator, args[0], false))
+		return 0;
+
+	control[activator->player->GetPlayerNum()].buttonheld[bt_use] = true;
+	return NitemareTeleportFromWallSpot(spot, activator);
+}
+
+FUNC(Nitemare_ClimbWarp)
+{
+	if(!IWad::CheckGameFilter("Nitemare3D") || spot == NULL ||
+		activator == NULL || activator->player == NULL)
+		return 0;
+
+	if(control[activator->player->GetPlayerNum()].buttonheld[bt_use])
+		return 0;
+	control[activator->player->GetPlayerNum()].buttonheld[bt_use] = true;
+
+	const unsigned int rawId = static_cast<unsigned int>(args[0]);
+	const unsigned int minId = static_cast<unsigned int>(args[1]);
+	const unsigned int maxId = static_cast<unsigned int>(args[2]);
+
+	const bool canDown = rawId > minId;
+	bool canUp = false;
+	if(rawId < maxId)
+	{
+		// FUN_1010_2426 disables "Climb up" only when the current raw ID is
+		// the highest member of this logical warp class actually used in the map.
+		for(unsigned int candidate = rawId + 1; candidate <= maxId; ++candidate)
+		{
+			if(NitemareFindWallDeltaTarget(spot, rawId,
+				static_cast<int>(candidate) - static_cast<int>(rawId)) != NULL)
+			{
+				canUp = true;
+				break;
+			}
+		}
+	}
+
+	const int delta = NitemareClimbChoice(canUp, canDown);
+	if(delta == 0)
+		return 0;
+
+	MapSpot target = NitemareFindWallDeltaTarget(spot, rawId, delta);
+	return NitemareTeleportFromWallSpot(target, activator);
 }
 
 FUNC(Exit_Secret)

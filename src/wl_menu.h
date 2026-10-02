@@ -78,6 +78,7 @@ void TicDelay(int count);
 int StartCPMusic(const char* song);
 bool Confirm(const char *string);
 void Message(const char *string);
+int NitemareClimbChoice(bool canUp, bool canDown);
 void CheckPause(void);
 void ShootSnd(void);
 void CheckSecretMissions(void);

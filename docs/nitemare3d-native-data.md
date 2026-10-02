@@ -136,6 +136,33 @@ trailer. The loader exposes:
 This prepares native palette selection without baking a palette into IMG
 conversion.
 
+## Climb warps (WARP_1..WARP_8)
+
+The Win16 climb family is now decoded and wired into the generated translator.
+
+The original `FUN_1018_1EE0` builds a three-entry modal menu:
+
+- command 0x1B: `Climb up`,
+- command 0x1C: `Climb down`,
+- command 0x19: `Cancel`.
+
+The command dispatcher proves that 0x1B calls the shared passage helper with
+`+1`, while 0x1C calls it with `-1`. Therefore the physical target is the
+first current-map cell whose raw wall ID is the current warp ID plus or minus
+one; the shared free-neighbor helper then performs the same N/E/S/W blocked-cell
+search used by the colored-key passages.
+
+Endpoint enable rules are also preserved:
+
+- Down is disabled at the lowest raw ID defined for the logical WARP_n class.
+- Up is disabled when the current raw ID is the highest member of that class
+  actually used in the current map.
+
+ECWolf now exposes this as `Nitemare_ClimbWarp` (special 16). A small modal
+chooser keeps the current game/music context and offers only the enabled
+directions plus Cancel. The generated per-episode XLAT passes each WARP_1..8
+raw ID and its class bounds into the runtime special.
+
 ## Colored-key passages (WARP_L1..WARP_L4)
 
 The executable audit now closes enough of the shared passage helper to model
