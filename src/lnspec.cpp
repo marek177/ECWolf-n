@@ -1074,11 +1074,32 @@ FUNC(Nitemare_ClimbWarp)
 		return 0;
 	control[activator->player->GetPlayerNum()].buttonheld[bt_use] = true;
 
-	const int delta = NitemareClimbChoice(args[1] != 0, args[2] != 0);
+	const unsigned int rawId = static_cast<unsigned int>(args[0]);
+	const unsigned int minId = static_cast<unsigned int>(args[1]);
+	const unsigned int maxId = static_cast<unsigned int>(args[2]);
+
+	const bool canDown = rawId > minId;
+	bool canUp = false;
+	if(rawId < maxId)
+	{
+		// FUN_1010_2426 disables "Climb up" only when the current raw ID is
+		// the highest member of this logical warp class actually used in the map.
+		for(unsigned int candidate = rawId + 1; candidate <= maxId; ++candidate)
+		{
+			if(NitemareFindWallDeltaTarget(spot, rawId,
+				static_cast<int>(candidate) - static_cast<int>(rawId)) != NULL)
+			{
+				canUp = true;
+				break;
+			}
+		}
+	}
+
+	const int delta = NitemareClimbChoice(canUp, canDown);
 	if(delta == 0)
 		return 0;
 
-	MapSpot target = NitemareFindWallDeltaTarget(spot, static_cast<unsigned int>(args[0]), delta);
+	MapSpot target = NitemareFindWallDeltaTarget(spot, rawId, delta);
 	return NitemareTeleportFromWallSpot(target, activator);
 }
 
