@@ -136,6 +136,29 @@ trailer. The loader exposes:
 This prepares native palette selection without baking a palette into IMG
 conversion.
 
+## Colored-key passages (WARP_L1..WARP_L4)
+
+The executable audit now closes enough of the shared passage helper to model
+the four reusable colored-key gates directly.
+
+On successful USE the original helper:
+
+1. checks the corresponding reusable colored key,
+2. starts from the gate wall cell,
+3. searches neighboring cells in N -> E -> S -> W order,
+4. skips the player's current cell,
+5. rejects a candidate when wall/object blocking bit 0x02 is set,
+6. moves the player to the center of the first free candidate,
+7. assigns the cardinal facing associated with that candidate.
+
+The ECWolf special `Nitemare_KeyPassage` reproduces that structural behavior.
+`WARP_L1..L4` map to Nitemare locks 201..204. Translated wall tiles represent
+the original wall-blocking test and generated +SOLID actors represent the
+verified blocking object range.
+
+The original success SFX/event 0x32 is not bound yet because the native SND.DAT
+event-name mapping remains separate audio work.
+
 ## Level gateways
 
 The generated wall translator now handles the two verified level-gateway
