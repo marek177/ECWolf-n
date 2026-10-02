@@ -1035,7 +1035,7 @@ static MapSpot NitemareFindWallDeltaTarget(MapSpot source, unsigned int rawWallI
 		return NULL;
 
 	const unsigned int targetIndex = static_cast<unsigned int>(targetRaw) - tileStart;
-	const GameMap::MapHeader &header = gm->GetHeader();
+	const GameMap::Header &header = gm->GetHeader();
 	for(unsigned int y = 0; y < header.height; ++y)
 	{
 		for(unsigned int x = 0; x < header.width; ++x)
