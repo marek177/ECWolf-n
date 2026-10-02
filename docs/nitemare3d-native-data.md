@@ -51,6 +51,28 @@ Gameplay translation is deliberately separate. WALLS.*, OBJECTS.*, doors,
 warps, triggers, player starts, enemies, weapons and specials still need a
 Nitemare-specific xlat/game layer.
 
+### WALLS.1 / WALLS.2 / WALLS.3 and OBJECTS.1 / OBJECTS.2 / OBJECTS.3
+
+The original editor definition catalogs are now recognized as native Nitemare
+resources. Each non-empty line is validated as:
+
+- hexadecimal map ID (0x00..0xFF),
+- visual code,
+- image name,
+- class name,
+- optional free-form description.
+
+The original table bytes are preserved. Per-episode markers and raw definition
+lumps are exposed as:
+
+- walls: `NITWAL1..3` + `N1WDEF..N3WDEF`,
+- objects: `NITOBJ1..3` + `N1ODEF..N3ODEF`.
+
+These files are editor catalogs, not a substitute for the executable's runtime
+semantics. The next translation layer will use their raw-ID/class relationships
+together with executable-verified behavior to build ECWolf wall tiles, things,
+triggers and special interactions.
+
 ### SND.DAT
 
 The DAT directory is read as six-byte descriptors:
@@ -111,7 +133,7 @@ object, combat or special-wall semantics into engine behavior.
 
 The next step toward a playable Nitemare 3D game definition is:
 
-1. add a Nitemare-specific xlat using WALLS.1-3 and OBJECTS.1-3,
+1. generate a Nitemare-specific xlat from the now-loaded WALLS.1-3 and OBJECTS.1-3 catalogs,
 2. resolve IMG wall/object sequence slots to named textures/sprites,
 3. register Nitemare as a selectable game bundle in wl_iwad.cpp/IWADINFO,
 4. map SND.DAT slot IDs into SNDINFO and music definitions,

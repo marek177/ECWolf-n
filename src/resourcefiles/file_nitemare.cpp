@@ -38,6 +38,122 @@ static FString BaseNameOf(const char *filename)
 	return name;
 }
 
+static bool IsDefinitionSpace(char c)
+{
+	return c == ' ' || c == '\t';
+}
+
+static bool ParseDefinitionId(const char *begin, const char *end, unsigned int &value)
+{
+	if(begin == end)
+		return false;
+
+	if(end - begin >= 2 && begin[0] == '0' && (begin[1] == 'x' || begin[1] == 'X'))
+		begin += 2;
+	if(begin == end)
+		return false;
+
+	value = 0;
+	for(const char *p = begin; p != end; ++p)
+	{
+		unsigned int digit;
+		if(*p >= '0' && *p <= '9')
+			digit = static_cast<unsigned int>(*p - '0');
+		else if(*p >= 'a' && *p <= 'f')
+			digit = static_cast<unsigned int>(*p - 'a' + 10);
+		else if(*p >= 'A' && *p <= 'F')
+			digit = static_cast<unsigned int>(*p - 'A' + 10);
+		else
+			return false;
+
+		value = (value << 4) | digit;
+		if(value > 0xFF)
+			return false;
+	}
+	return true;
+}
+
+static bool ValidateDefinitionTable(FileReader *reader)
+{
+	const long length = reader->GetLength();
+	if(length <= 0)
+		return false;
+
+	char *data = new char[length + 1];
+	reader->Seek(0, SEEK_SET);
+	if(reader->Read(data, length) != length)
+	{
+		delete[] data;
+		return false;
+	}
+	data[length] = 0;
+
+	char *p = data;
+	char *end = data + length;
+	unsigned int records = 0;
+	bool valid = true;
+
+	while(p < end && valid)
+	{
+		char *line = p;
+		while(p < end && *p != '\n')
+			++p;
+		char *lineEnd = p;
+		if(p < end)
+			++p;
+
+		if(lineEnd > line && lineEnd[-1] == '\r')
+			--lineEnd;
+		while(line < lineEnd && IsDefinitionSpace(*line))
+			++line;
+		while(lineEnd > line && IsDefinitionSpace(lineEnd[-1]))
+			--lineEnd;
+		if(line == lineEnd)
+			continue;
+
+		const char *tokens[8];
+		const char *scan = line;
+		for(int field = 0; field < 4; ++field)
+		{
+			while(scan < lineEnd && IsDefinitionSpace(*scan))
+				++scan;
+			if(scan == lineEnd)
+			{
+				valid = false;
+				break;
+			}
+
+			tokens[field * 2] = scan;
+			while(scan < lineEnd && !IsDefinitionSpace(*scan))
+				++scan;
+			tokens[field * 2 + 1] = scan;
+		}
+
+		if(!valid)
+			break;
+
+		unsigned int id;
+		if(!ParseDefinitionId(tokens[0], tokens[1], id))
+		{
+			valid = false;
+			break;
+		}
+
+		// visual_code, image_name and class_name must be non-empty. The
+		// description is the optional remainder of the line.
+		if(tokens[2] == tokens[3] || tokens[4] == tokens[5] || tokens[6] == tokens[7])
+		{
+			valid = false;
+			break;
+		}
+
+		++records;
+	}
+
+	delete[] data;
+	return valid && records != 0;
+}
+
 class FNitemarePcmLump : public FResourceLump
 {
 public:
@@ -156,6 +272,12 @@ public:
 		else if(base.CompareNoCase("MAP.1") == 0) ok = OpenMap(1);
 		else if(base.CompareNoCase("MAP.2") == 0) ok = OpenMap(2);
 		else if(base.CompareNoCase("MAP.3") == 0) ok = OpenMap(3);
+		else if(base.CompareNoCase("WALLS.1") == 0) ok = OpenDefinitions(1, true);
+		else if(base.CompareNoCase("WALLS.2") == 0) ok = OpenDefinitions(2, true);
+		else if(base.CompareNoCase("WALLS.3") == 0) ok = OpenDefinitions(3, true);
+		else if(base.CompareNoCase("OBJECTS.1") == 0) ok = OpenDefinitions(1, false);
+		else if(base.CompareNoCase("OBJECTS.2") == 0) ok = OpenDefinitions(2, false);
+		else if(base.CompareNoCase("OBJECTS.3") == 0) ok = OpenDefinitions(3, false);
 		else if(base.CompareNoCase("SND.DAT") == 0) ok = OpenDat(true);
 		else if(base.CompareNoCase("UIF.DAT") == 0) ok = OpenDat(false);
 		else if(base.CompareNoCase("ENDING.FLI") == 0) ok = OpenFli();
@@ -299,6 +421,22 @@ private:
 		return actualCount > 0;
 	}
 
+	bool OpenDefinitions(int episode, bool walls)
+	{
+		const long length = Reader->GetLength();
+		if(length <= 0 || !ValidateDefinitionTable(Reader))
+			return false;
+
+		FString marker;
+		marker.Format(walls ? "NITWAL%d" : "NITOBJ%d", episode);
+		AddMarker(marker);
+
+		FString tableName;
+		tableName.Format(walls ? "N%dWDEF" : "N%dODEF", episode);
+		AddRaw(tableName, 0, static_cast<int>(length));
+		return true;
+	}
+
 	bool OpenDat(bool soundArchive)
 	{
 		const long length = Reader->GetLength();
@@ -432,6 +570,12 @@ static bool IsNitemareFilename(const char *filename)
 		base.CompareNoCase("MAP.1") == 0 ||
 		base.CompareNoCase("MAP.2") == 0 ||
 		base.CompareNoCase("MAP.3") == 0 ||
+		base.CompareNoCase("WALLS.1") == 0 ||
+		base.CompareNoCase("WALLS.2") == 0 ||
+		base.CompareNoCase("WALLS.3") == 0 ||
+		base.CompareNoCase("OBJECTS.1") == 0 ||
+		base.CompareNoCase("OBJECTS.2") == 0 ||
+		base.CompareNoCase("OBJECTS.3") == 0 ||
 		base.CompareNoCase("SND.DAT") == 0 ||
 		base.CompareNoCase("UIF.DAT") == 0 ||
 		base.CompareNoCase("ENDING.FLI") == 0 ||
