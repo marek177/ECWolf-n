@@ -136,6 +136,43 @@ trailer. The loader exposes:
 This prepares native palette selection without baking a palette into IMG
 conversion.
 
+## Experimental game bundle
+
+The engine can now collect a native Nitemare 3D installation as one game bundle
+instead of treating the numbered files as unrelated Wolf-style extensions.
+
+Required files for the current bootstrap are:
+
+- MAP.1 / MAP.2 / MAP.3
+- IMG.1 / IMG.2 / IMG.3
+- WALLS.1 / WALLS.2 / WALLS.3
+- OBJECTS.1 / OBJECTS.2 / OBJECTS.3
+
+When present, SND.DAT, UIF.DAT, ENDING.FLI and GAME.PAL are added to the same
+bundle automatically.
+
+The bundle is registered in IWADINFO as `Nitemare 3D (Experimental)` with
+the selector ID `nitemare3d`. It is marked Preview because the native
+gameplay backend is not complete yet.
+
+`mapinfo/nitemare3d.txt` exposes all preserved maps:
+
+- N1M01..N1M11,
+- N2M01..N2M10,
+- N3M01..N3M10.
+
+N1M11 is kept isolated as the preserved Episode-1 demo map. Each episode uses
+its matching generated translator (`N1WXLAT`, `N2WXLAT`, `N3WXLAT`).
+
+A minimal `NitemarePlayer` PlayerPawn is provided only to bootstrap map
+loading and movement. It uses the verified 100 HP and 27-unit collision radius
+but intentionally has no Nitemare weapon/inventory implementation yet.
+
+Until GAME.PAL activation is made conditional in the startup path, the
+bootstrap MAPINFO uses ECWolf's built-in WOLFPAL as a safe fallback. This is
+not a claim of palette parity; native Nitemare palette selection remains a
+separate integration step.
+
 ## Source-of-truth repositories
 
 The implementation was derived from the verified format work already kept in:
@@ -153,7 +190,7 @@ The next step toward a playable Nitemare 3D game definition is:
 
 1. extend the generated bootstrap xlat with executable-verified doors, warps, exits, triggers and object classes,
 2. expand the new IMG resource aliases into complete wall/object animation sequences,
-3. register Nitemare as a selectable game bundle in wl_iwad.cpp/IWADINFO,
+3. replace the bootstrap player/palette path with the native Nitemare player, inventory and conditional GAME.PAL activation,
 4. map SND.DAT slot IDs into SNDINFO and music definitions,
 5. wire ENDING.FLI playback,
 6. add Nitemare actors, weapons, doors/warps, collision and special-wall
