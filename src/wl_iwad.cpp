@@ -425,6 +425,56 @@ static void LookForGameData(FResourceFile *res, TArray<WadStuff> &iwads, const c
 	LumpRemapper::ClearRemaps();
 }
 
+static bool AddNitemareBundleFile(File &dir, const char *filename, WadStuff &wad, bool required)
+{
+	const FString actualName = dir.getInsensitiveFile(filename, false);
+	if(actualName.IsEmpty())
+		return !required;
+
+	File file(dir, actualName);
+	if(!file.exists())
+		return !required;
+
+	wad.Path.Push(file.getPath());
+	return true;
+}
+
+/* Nitemare 3D does not use the Wolf-style "same basename extension" bundle.
+ * Its episode/resource role is encoded in names such as MAP.1, IMG.2 and
+ * OBJECTS.3, so collect the native files explicitly before asking IWADINFO
+ * to identify the aggregate set.
+ */
+static void LookForNitemareData(TArray<WadStuff> &iwads, const char *directory)
+{
+	static const char * const RequiredFiles[] = {
+		"MAP.1", "MAP.2", "MAP.3",
+		"IMG.1", "IMG.2", "IMG.3",
+		"WALLS.1", "WALLS.2", "WALLS.3",
+		"OBJECTS.1", "OBJECTS.2", "OBJECTS.3"
+	};
+	static const char * const OptionalFiles[] = {
+		"SND.DAT", "UIF.DAT", "ENDING.FLI", "GAME.PAL"
+	};
+
+	File dir(directory);
+	if(!dir.exists())
+		return;
+
+	WadStuff wad;
+	wad.Extension = "nitemare3d";
+
+	for(unsigned int i = 0; i < countof(RequiredFiles); ++i)
+	{
+		if(!AddNitemareBundleFile(dir, RequiredFiles[i], wad, true))
+			return;
+	}
+	for(unsigned int i = 0; i < countof(OptionalFiles); ++i)
+		AddNitemareBundleFile(dir, OptionalFiles[i], wad, false);
+
+	if(CheckData(wad) >= 0 && CheckIWadNotYetFound(iwads, wad.Type))
+		iwads.Push(wad);
+}
+
 /**
  * Remove any iwads which depend on another, but the other isn't present.
  */
@@ -652,14 +702,19 @@ void SelectGame(TArray<FString> &wadfiles, const char* iwad, const char* datawad
 
 		// Skip empty paths
 		if(!path.IsEmpty())
+		{
 			LookForGameData(datawadRes, basefiles, path);
+			LookForNitemareData(basefiles, path);
+		}
 		split = newSplit+1;
 	}
 	while(split != 0);
 
 #if !defined(__APPLE__) && !defined(_WIN32)
 	LookForGameData(datawadRes, basefiles, "/usr/share/games/wolf3d");
+	LookForNitemareData(basefiles, "/usr/share/games/wolf3d");
 	LookForGameData(datawadRes, basefiles, "/usr/local/share/games/wolf3d");
+	LookForNitemareData(basefiles, "/usr/local/share/games/wolf3d");
 #endif
 
 	// Look for a steam install. (Basically from ZDoom)
