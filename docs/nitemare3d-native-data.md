@@ -136,6 +136,28 @@ trailer. The loader exposes:
 This prepares native palette selection without baking a palette into IMG
 conversion.
 
+## Colored keys and locked doors
+
+The bootstrap now uses ECWolf's native Key/LOCKDEFS system for the six
+verified Nitemare access items:
+
+- red / green / blue / yellow key,
+- red / yellow ID card.
+
+OBJECTS IDs 0x05..0x0A are generated as Key-derived inventory actors with
+always-pickup behavior. LOCKDEFS 201..206 accept the matching episode-specific
+raw actor from IMG/OBJECTS.1, .2 or .3.
+
+Colored locked sliding-door families `DOORVL/HL`, `DOORVL2/HL2` and
+`DOORVL3/HL3` now emit `Door_Open` triggers with the appropriate lock.
+The original editor catalogs vary wording between forms such as "red key",
+"Locked Red Door" and "red - locked", so color detection is deliberately
+restricted to these known locked-door classes.
+
+Transportation Chamber `DOORVI/HI` and remote `DOORVR/HR` remain
+unimplemented here because the original executable binds those families to
+associated OBJECT subtype/group state rather than to wall color alone.
+
 ## Bootstrap sliding doors
 
 The generated wall translator now promotes only the wall families whose
