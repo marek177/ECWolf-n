@@ -152,8 +152,9 @@ When present, SND.DAT, UIF.DAT, ENDING.FLI and GAME.PAL are added to the same
 bundle automatically.
 
 The bundle is registered in IWADINFO as `Nitemare 3D (Experimental)` with
-the selector ID `nitemare3d`. It is marked Preview because the native
-gameplay backend is not complete yet.
+the selector ID `nitemare3d`. The experimental label is explicit, but the
+entry remains visible in the normal game picker so a Nitemare-only data
+directory does not get filtered out as "no base game data".
 
 `mapinfo/nitemare3d.txt` exposes all preserved maps:
 
