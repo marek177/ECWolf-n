@@ -168,10 +168,10 @@ A minimal `NitemarePlayer` PlayerPawn is provided only to bootstrap map
 loading and movement. It uses the verified 100 HP and 27-unit collision radius
 but intentionally has no Nitemare weapon/inventory implementation yet.
 
-Until GAME.PAL activation is made conditional in the startup path, the
-bootstrap MAPINFO uses ECWolf's built-in WOLFPAL as a safe fallback. This is
-not a claim of palette parity; native Nitemare palette selection remains a
-separate integration step.
+The bootstrap MAPINFO requests the native `NITPAL8` palette. Startup now
+uses it whenever GAME.PAL supplied that lump and falls back only for the
+Nitemare3D game family to ECWolf's built-in WOLFPAL when GAME.PAL is absent.
+The fallback keeps the experimental bundle startable but is not palette parity.
 
 ## Source-of-truth repositories
 
@@ -190,7 +190,7 @@ The next step toward a playable Nitemare 3D game definition is:
 
 1. extend the generated bootstrap xlat with executable-verified doors, warps, exits, triggers and object classes,
 2. expand the new IMG resource aliases into complete wall/object animation sequences,
-3. replace the bootstrap player/palette path with the native Nitemare player, inventory and conditional GAME.PAL activation,
+3. replace the bootstrap player with the complete Nitemare player, inventory and weapon runtime,
 4. map SND.DAT slot IDs into SNDINFO and music definitions,
 5. wire ENDING.FLI playback,
 6. add Nitemare actors, weapons, doors/warps, collision and special-wall
