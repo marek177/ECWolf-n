@@ -140,6 +140,15 @@ static int BootstrapColorLock(const char *begin, const char *end)
 	return 0;
 }
 
+static int BootstrapKeyPassageLock(const char *begin, const char *end)
+{
+	if(DefinitionTokenEquals(begin, end, "WARP_L1")) return 201;
+	if(DefinitionTokenEquals(begin, end, "WARP_L2")) return 202;
+	if(DefinitionTokenEquals(begin, end, "WARP_L3")) return 203;
+	if(DefinitionTokenEquals(begin, end, "WARP_L4")) return 204;
+	return 0;
+}
+
 static int RecoveredObjectClassCode(const char *begin, const char *end)
 {
 	if(end - begin > 5 && strnicmp(begin, "GUARD", 5) == 0)
@@ -278,6 +287,20 @@ static bool BuildDefinitionXlat(FileReader *reader, int episode, bool walls, FSt
 				{
 					FString texture;
 					texture.Format("N%dW%02X", episode, id);
+
+					const int keyPassageLock = BootstrapKeyPassageLock(classBegin, classEnd);
+					if(keyPassageLock != 0)
+					{
+						FString passageTrigger;
+						passageTrigger.Format(
+							"\ttrigger %u\n\t{\n"
+							"\t\taction = \"Nitemare_KeyPassage\";\n"
+							"\t\targ0 = %d;\n"
+							"\t\tplayeruse = true;\n"
+							"\t}\n",
+							id, keyPassageLock);
+						xlat += passageTrigger;
+					}
 
 					if(DefinitionTokenEquals(classBegin, classEnd, "LEVEL_UP") ||
 						DefinitionTokenEquals(classBegin, classEnd, "LEVEL_UP2"))
