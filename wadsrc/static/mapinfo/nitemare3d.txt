@@ -1,0 +1,307 @@
+gameinfo
+{
+	borderflat = "#000000"
+	gamepalette = "NITPAL8"
+	playerclasses = "NitemarePlayer"
+	deathtransition = "Fade"
+}
+
+automap
+{
+	background = "00 00 00"
+	doorcolor = "FF FF 00"
+	floorcolor = "20 20 20"
+	wallcolor = "C0 C0 C0"
+	yourcolor = "FF 00 00"
+}
+
+skill easy
+{
+	name = "Easy"
+	spawnfilter = 1
+}
+
+skill normal
+{
+	name = "Normal"
+	spawnfilter = 2
+}
+
+skill hard
+{
+	name = "Hard"
+	spawnfilter = 3
+}
+
+adddefaultmap
+{
+	defaultfloor = "#000000"
+	defaultceiling = "#000000"
+}
+
+episode "N1M01"
+{
+	name = "Episode 1"
+	key = "1"
+}
+
+episode "N2M01"
+{
+	name = "Episode 2"
+	key = "2"
+}
+
+episode "N3M01"
+{
+	name = "Episode 3"
+	key = "3"
+}
+
+map "N1M01" "Nitemare E1M1"
+{
+	translator = "N1WXLAT"
+	levelnum = 1
+	floornumber = "1-1"
+	next = "N1M02"
+}
+
+map "N1M02" "Nitemare E1M2"
+{
+	translator = "N1WXLAT"
+	levelnum = 2
+	floornumber = "1-2"
+	next = "N1M03"
+}
+
+map "N1M03" "Nitemare E1M3"
+{
+	translator = "N1WXLAT"
+	levelnum = 3
+	floornumber = "1-3"
+	next = "N1M04"
+}
+
+map "N1M04" "Nitemare E1M4"
+{
+	translator = "N1WXLAT"
+	levelnum = 4
+	floornumber = "1-4"
+	next = "N1M05"
+}
+
+map "N1M05" "Nitemare E1M5"
+{
+	translator = "N1WXLAT"
+	levelnum = 5
+	floornumber = "1-5"
+	next = "N1M06"
+}
+
+map "N1M06" "Nitemare E1M6"
+{
+	translator = "N1WXLAT"
+	levelnum = 6
+	floornumber = "1-6"
+	next = "N1M07"
+}
+
+map "N1M07" "Nitemare E1M7"
+{
+	translator = "N1WXLAT"
+	levelnum = 7
+	floornumber = "1-7"
+	next = "N1M08"
+}
+
+map "N1M08" "Nitemare E1M8"
+{
+	translator = "N1WXLAT"
+	levelnum = 8
+	floornumber = "1-8"
+	next = "N1M09"
+}
+
+map "N1M09" "Nitemare E1M9"
+{
+	translator = "N1WXLAT"
+	levelnum = 9
+	floornumber = "1-9"
+	next = "N1M10"
+}
+
+map "N1M10" "Nitemare E1M10"
+{
+	translator = "N1WXLAT"
+	levelnum = 10
+	floornumber = "1-10"
+	next = "N1M01"
+}
+
+map "N1M11" "Nitemare E1M11"
+{
+	translator = "N1WXLAT"
+	levelnum = 11
+	floornumber = "1-11"
+	next = "N1M11"
+}
+
+map "N2M01" "Nitemare E2M1"
+{
+	translator = "N2WXLAT"
+	levelnum = 12
+	floornumber = "2-1"
+	next = "N2M02"
+}
+
+map "N2M02" "Nitemare E2M2"
+{
+	translator = "N2WXLAT"
+	levelnum = 13
+	floornumber = "2-2"
+	next = "N2M03"
+}
+
+map "N2M03" "Nitemare E2M3"
+{
+	translator = "N2WXLAT"
+	levelnum = 14
+	floornumber = "2-3"
+	next = "N2M04"
+}
+
+map "N2M04" "Nitemare E2M4"
+{
+	translator = "N2WXLAT"
+	levelnum = 15
+	floornumber = "2-4"
+	next = "N2M05"
+}
+
+map "N2M05" "Nitemare E2M5"
+{
+	translator = "N2WXLAT"
+	levelnum = 16
+	floornumber = "2-5"
+	next = "N2M06"
+}
+
+map "N2M06" "Nitemare E2M6"
+{
+	translator = "N2WXLAT"
+	levelnum = 17
+	floornumber = "2-6"
+	next = "N2M07"
+}
+
+map "N2M07" "Nitemare E2M7"
+{
+	translator = "N2WXLAT"
+	levelnum = 18
+	floornumber = "2-7"
+	next = "N2M08"
+}
+
+map "N2M08" "Nitemare E2M8"
+{
+	translator = "N2WXLAT"
+	levelnum = 19
+	floornumber = "2-8"
+	next = "N2M09"
+}
+
+map "N2M09" "Nitemare E2M9"
+{
+	translator = "N2WXLAT"
+	levelnum = 20
+	floornumber = "2-9"
+	next = "N2M10"
+}
+
+map "N2M10" "Nitemare E2M10"
+{
+	translator = "N2WXLAT"
+	levelnum = 21
+	floornumber = "2-10"
+	next = "N2M01"
+}
+
+map "N3M01" "Nitemare E3M1"
+{
+	translator = "N3WXLAT"
+	levelnum = 22
+	floornumber = "3-1"
+	next = "N3M02"
+}
+
+map "N3M02" "Nitemare E3M2"
+{
+	translator = "N3WXLAT"
+	levelnum = 23
+	floornumber = "3-2"
+	next = "N3M03"
+}
+
+map "N3M03" "Nitemare E3M3"
+{
+	translator = "N3WXLAT"
+	levelnum = 24
+	floornumber = "3-3"
+	next = "N3M04"
+}
+
+map "N3M04" "Nitemare E3M4"
+{
+	translator = "N3WXLAT"
+	levelnum = 25
+	floornumber = "3-4"
+	next = "N3M05"
+}
+
+map "N3M05" "Nitemare E3M5"
+{
+	translator = "N3WXLAT"
+	levelnum = 26
+	floornumber = "3-5"
+	next = "N3M06"
+}
+
+map "N3M06" "Nitemare E3M6"
+{
+	translator = "N3WXLAT"
+	levelnum = 27
+	floornumber = "3-6"
+	next = "N3M07"
+}
+
+map "N3M07" "Nitemare E3M7"
+{
+	translator = "N3WXLAT"
+	levelnum = 28
+	floornumber = "3-7"
+	next = "N3M08"
+}
+
+map "N3M08" "Nitemare E3M8"
+{
+	translator = "N3WXLAT"
+	levelnum = 29
+	floornumber = "3-8"
+	next = "N3M09"
+}
+
+map "N3M09" "Nitemare E3M9"
+{
+	translator = "N3WXLAT"
+	levelnum = 30
+	floornumber = "3-9"
+	next = "N3M10"
+}
+
+map "N3M10" "Nitemare E3M10"
+{
+	translator = "N3WXLAT"
+	levelnum = 31
+	floornumber = "3-10"
+	next = "N3M01"
+}
+
