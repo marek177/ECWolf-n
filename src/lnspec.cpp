@@ -944,6 +944,31 @@ FUNC(Exit_Normal)
 	return 1;
 }
 
+FUNC(Nitemare_LevelUp2)
+{
+	if(!IWad::CheckGameFilter("Nitemare3D") || activator == NULL || activator->player == NULL)
+		return 0;
+
+	if(control[activator->player->GetPlayerNum()].buttonheld[bt_use])
+		return 0;
+	control[activator->player->GetPlayerNum()].buttonheld[bt_use] = true;
+
+	LevelInfo &current = LevelInfo::Find(gamestate.mapname);
+	const unsigned int targetNumber = current.LevelNumber + 2;
+	LevelInfo &target = LevelInfo::FindByNumber(targetNumber);
+	if(target.MapName[0] == 0)
+		return 0;
+
+	playstate = ex_newmap;
+	NewMap.newmap = targetNumber;
+	NewMap.flags = 0;
+	NewMap.x = activator->x;
+	NewMap.y = activator->y;
+	NewMap.angle = activator->angle;
+	SD_WaitSoundDone();
+	return 1;
+}
+
 FUNC(Exit_Secret)
 {
 	
