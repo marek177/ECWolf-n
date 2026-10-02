@@ -1,7 +1,7 @@
 gameinfo
 {
 	borderflat = "#000000"
-	gamepalette = "WOLFPAL"
+	gamepalette = "NITPAL8"
 	playerclasses = "NitemarePlayer"
 	deathtransition = "Fade"
 }
