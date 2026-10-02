@@ -969,6 +969,66 @@ FUNC(Nitemare_LevelUp2)
 	return 1;
 }
 
+FUNC(Nitemare_KeyPassage)
+{
+	if(!IWad::CheckGameFilter("Nitemare3D") || spot == NULL ||
+		activator == NULL || activator->player == NULL)
+		return 0;
+
+	if(control[activator->player->GetPlayerNum()].buttonheld[bt_use])
+		return 0;
+
+	if(args[0] != 0 && !P_CheckKeys(activator, args[0], false))
+		return 0;
+
+	control[activator->player->GetPlayerNum()].buttonheld[bt_use] = true;
+
+	static const MapTile::Side searchOrder[4] = {
+		MapTile::North, MapTile::East, MapTile::South, MapTile::West
+	};
+	static const angle_t facing[4] = {
+		ANGLE_90, 0, ANGLE_270, ANGLE_180
+	};
+
+	for(unsigned int i = 0; i < 4; ++i)
+	{
+		MapSpot candidate = spot->GetAdjacent(searchOrder[i]);
+		if(candidate == NULL)
+			continue;
+
+		const unsigned int x = candidate->GetX();
+		const unsigned int y = candidate->GetY();
+		if(x == activator->tilex && y == activator->tiley)
+			continue;
+
+		// The original helper rejects wall/object property bit 0x02.
+		// In the bootstrap map this corresponds to any translated wall tile
+		// and the generated +SOLID object actors.
+		if(candidate->tile != NULL)
+			continue;
+
+		bool blocked = false;
+		for(AActor::Iterator iter = AActor::GetIterator(); iter.Next();)
+		{
+			AActor *actor = iter;
+			if(actor != activator && (actor->flags & FL_SOLID) &&
+				actor->tilex == x && actor->tiley == y)
+			{
+				blocked = true;
+				break;
+			}
+		}
+		if(blocked)
+			continue;
+
+		const fixed destX = (x << FRACBITS) + (FRACUNIT / 2);
+		const fixed destY = (y << FRACBITS) + (FRACUNIT / 2);
+		return activator->Teleport(destX, destY, facing[i], true) ? 1 : 0;
+	}
+
+	return 0;
+}
+
 FUNC(Exit_Secret)
 {
 	
