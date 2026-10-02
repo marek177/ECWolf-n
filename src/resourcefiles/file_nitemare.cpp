@@ -101,6 +101,45 @@ static int BootstrapDoorAxis(const char *begin, const char *end)
 	return 0;
 }
 
+static int BootstrapLockedDoorAxis(const char *begin, const char *end)
+{
+	if(DefinitionTokenEquals(begin, end, "DOORVL") ||
+		DefinitionTokenEquals(begin, end, "DOORVL2") ||
+		DefinitionTokenEquals(begin, end, "DOORVL3"))
+		return 1;
+	if(DefinitionTokenEquals(begin, end, "DOORHL") ||
+		DefinitionTokenEquals(begin, end, "DOORHL2") ||
+		DefinitionTokenEquals(begin, end, "DOORHL3"))
+		return 2;
+	return 0;
+}
+
+static bool DefinitionRangeContainsNoCase(const char *begin, const char *end, const char *needle)
+{
+	const size_t needleLength = strlen(needle);
+	if(needleLength == 0 || static_cast<size_t>(end - begin) < needleLength)
+		return false;
+
+	for(const char *p = begin; p + needleLength <= end; ++p)
+	{
+		if(strnicmp(p, needle, needleLength) == 0)
+			return true;
+	}
+	return false;
+}
+
+static int BootstrapColorLock(const char *begin, const char *end)
+{
+	// Called only for the verified colored locked-door families. Different
+	// episode catalogs spell the same variants as "red key", "Locked Red Door"
+	// or "red - locked", so the color word itself is the stable discriminator.
+	if(DefinitionRangeContainsNoCase(begin, end, "red")) return 201;
+	if(DefinitionRangeContainsNoCase(begin, end, "green")) return 202;
+	if(DefinitionRangeContainsNoCase(begin, end, "blue")) return 203;
+	if(DefinitionRangeContainsNoCase(begin, end, "yellow")) return 204;
+	return 0;
+}
+
 static int RecoveredObjectClassCode(const char *begin, const char *end)
 {
 	if(end - begin > 5 && strnicmp(begin, "GUARD", 5) == 0)
@@ -222,6 +261,9 @@ static bool BuildDefinitionXlat(FileReader *reader, int episode, bool walls, FSt
 
 		const char *classBegin = tokens[6];
 		const char *classEnd = tokens[7];
+		const char *descriptionBegin = scan;
+		while(descriptionBegin < lineEnd && IsDefinitionSpace(*descriptionBegin))
+			++descriptionBegin;
 
 		if(walls)
 		{
@@ -237,20 +279,29 @@ static bool BuildDefinitionXlat(FileReader *reader, int episode, bool walls, FSt
 					FString texture;
 					texture.Format("N%dW%02X", episode, id);
 
-					const int doorAxis = BootstrapDoorAxis(classBegin, classEnd);
-					if(doorAxis != 0)
+					const int ordinaryDoorAxis = BootstrapDoorAxis(classBegin, classEnd);
+					const int lockedDoorAxis = BootstrapLockedDoorAxis(classBegin, classEnd);
+					const int doorAxis = ordinaryDoorAxis != 0 ? ordinaryDoorAxis : lockedDoorAxis;
+					const int lock = lockedDoorAxis != 0 ? BootstrapColorLock(descriptionBegin, lineEnd) : 0;
+
+					if(ordinaryDoorAxis != 0 || (lockedDoorAxis != 0 && lock != 0))
 					{
+						FString lockArg;
+						if(lock != 0)
+							lockArg.Format("\t\targ3 = %d;\n", lock);
+
 						FString trigger;
 						trigger.Format(
 							"\ttrigger %u\n\t{\n"
 							"\t\taction = \"Door_Open\";\n"
 							"\t\targ1 = 16;\n"
 							"\t\targ2 = 300;\n"
+							"%s"
 							"\t\tplayeruse = true;\n"
 							"\t\trepeatable = true;\n"
 							"%s"
 							"\t}\n",
-							id,
+							id, lockArg.GetChars(),
 							doorAxis == 1 ?
 								"\t\tactivatenorth = false;\n\t\tactivatesouth = false;\n" :
 								"\t\tactivateeast = false;\n\t\tactivatewest = false;\n");
@@ -302,11 +353,12 @@ static bool BuildDefinitionXlat(FileReader *reader, int episode, bool walls, FSt
 						FString sprite;
 						sprite.Format("N%d%02X", episode, id);
 
+						const bool keyInventory = objectClass == 0x2F || objectClass == 0x30;
 						FString actor;
 						actor.Format(
-							"actor %s\n"
+							"actor %s%s\n"
 							"{\n"
-							"\tradius 32\n"
+							"%s"
 							"%s"
 							"\tstates\n"
 							"\t{\n"
@@ -315,7 +367,8 @@ static bool BuildDefinitionXlat(FileReader *reader, int episode, bool walls, FSt
 							"\t\t\tstop\n"
 							"\t}\n"
 							"}\n\n",
-							actorName.GetChars(),
+							actorName.GetChars(), keyInventory ? " : Key" : "",
+							keyInventory ? "\t+INVENTORY.ALWAYSPICKUP\n" : "\tradius 32\n",
 							(objectClass >= 0x08 && objectClass <= 0x2D) ? "\t+SOLID\n" : "",
 							sprite.GetChars());
 						*decorate += actor;
