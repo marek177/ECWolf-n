@@ -1566,7 +1566,9 @@ ACTION_FUNCTION(A_NitemareGuardDeathFinalize)
 		self->temp1 = 0x14;
 		self->health = 255;
 		self->flags |= FL_SHOOTABLE | FL_SOLID;
-		self->SetState(self->SpawnState);
+		const Frame *guardLoop = self->FindState(FName("GuardLoop"));
+		if(guardLoop != NULL)
+			self->SetState(guardLoop);
 		return true;
 	}
 
