@@ -840,22 +840,52 @@ static bool BuildDefinitionXlat(FileReader *reader, int episode, bool walls, FSt
 							properties += "\tradius 32\n";
 
 						FString actor;
-						actor.Format(
-							"actor %s%s\n"
-							"{\n"
-							"%s"
-							"%s"
-							"\tstates\n"
-							"\t{\n"
-							"\t\tSpawn:\n"
-							"\t\t\t%s A -1\n"
-							"\t\t\tstop\n"
-							"\t}\n"
-							"}\n\n",
-							actorName.GetChars(), parent.GetChars(),
-							properties.GetChars(),
-							(objectClass >= 0x08 && objectClass <= 0x2D) ? "\t+SOLID\n" : "",
-							sprite.GetChars());
+						if(guardActor)
+						{
+							actor.Format(
+								"actor %s%s\n"
+								"{\n"
+								"%s"
+								"\t+SOLID\n"
+								"\tstates\n"
+								"\t{\n"
+								"\t\tSpawn:\n"
+								"\t\t\tTNT1 A 0 A_NitemareInitGuardClass(%d)\n"
+								"\t\t\t%s A -1\n"
+								"\t\t\tstop\n"
+								"\t\tPain:\n"
+								"\t\t\t%s A 1\n"
+								"\t\t\tgoto Spawn\n"
+								"\t\tDeath:\n"
+								"\t\t\t%s A 1 A_NitemareGuardDeathFinalize\n"
+								"\t\t\t%s A -1\n"
+								"\t\t\tstop\n"
+								"\t}\n"
+								"}\n\n",
+								actorName.GetChars(), parent.GetChars(),
+								properties.GetChars(), objectClass,
+								sprite.GetChars(), sprite.GetChars(),
+								sprite.GetChars(), sprite.GetChars());
+						}
+						else
+						{
+							actor.Format(
+								"actor %s%s\n"
+								"{\n"
+								"%s"
+								"%s"
+								"\tstates\n"
+								"\t{\n"
+								"\t\tSpawn:\n"
+								"\t\t\t%s A -1\n"
+								"\t\t\tstop\n"
+								"\t}\n"
+								"}\n\n",
+								actorName.GetChars(), parent.GetChars(),
+								properties.GetChars(),
+								(objectClass >= 0x08 && objectClass <= 0x2D) ? "\t+SOLID\n" : "",
+								sprite.GetChars());
+						}
 						*decorate += actor;
 					}
 				}
