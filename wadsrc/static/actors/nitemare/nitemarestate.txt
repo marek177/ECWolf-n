@@ -1,0 +1,14 @@
+actor NitemareRemoteDoorState1 : Inventory
+{
+	inventory.maxamount 1
+}
+
+actor NitemareRemoteDoorState2 : Inventory
+{
+	inventory.maxamount 1
+}
+
+actor NitemareRemoteCannonsDisabled : Inventory
+{
+	inventory.maxamount 1
+}
