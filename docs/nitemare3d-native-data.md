@@ -136,6 +136,60 @@ trailer. The loader exposes:
 This prepares native palette selection without baking a palette into IMG
 conversion.
 
+## GUARD damage, pain and death receiver
+
+Player weapon damage now converges on one Nitemare-specific GUARD receiver
+instead of letting Silver Pistol and projectiles subtract ECWolf actor HP
+independently.
+
+The shared path now preserves these recovered rules:
+
+- class/weapon resistance is selected from the original OBJECT class 0x0C..0x1F
+  switch in one common helper;
+- Dr. Hamerstein class 0x16 uses fixed base damage 3 only on Episode 3 maps,
+  before difficulty scaling;
+- player->enemy difficulty scaling is applied once and final positive damage is
+  capped at 255;
+- non-lethal damage subtracts HP and enters the generated Pain state, which is
+  the current ECWolf placeholder for original GUARD state 0x15;
+- lethal damage sets HP to zero, removes further shootable eligibility, stores
+  killer position, awards the original class score immediately, and enters the
+  generated Death sequence;
+- generated GUARD actors carry their recovered runtime class in the serialized
+  actor `temp1` field, so class identity survives save/load and can change at
+  runtime independently of the original raw object ID.
+
+The kill-score table now follows the recovered 0x08..0x20 family, including
+Bat 25, Mrs H. 250, Dracula phase 1 score 0, Dracula-Bat 200, Penelope -1000,
+Dr. Hamerstein +1000 and Cannon 0.
+
+The generated Death state executes `A_NitemareGuardDeathFinalize`, modeling
+the original state-0x09 finalizer before terminal state 0x0A. Ordinary corpses
+lose SOLID/SHOOTABLE flags. Classes whose original finalizer clears the active
+render bit (0x09, 0x0A, 0x12, 0x13, 0x1A, 0x1E, 0x1F) terminate on an invisible
+TNT1 frame.
+
+Dracula class 0x11 follows the two-phase rule at finalization time rather than
+at lethal-hit time:
+
+- logical runtime class becomes 0x14,
+- HP resets to 255,
+- SOLID/SHOOTABLE are restored,
+- execution returns to the actor Spawn state.
+
+This preserves second-phase damage resistance and the 200-point final kill
+even though the final Dracula-Bat sprite/sequence substitution is still a
+visual placeholder.
+
+### Remaining fidelity boundary
+
+The full GUARD scheduler is not yet installed in ECWolf. Therefore the current
+Pain state uses a short generic reaction before returning to Spawn instead of
+the original strategy/state-specific routes through state 0x15, state 05 or
+state 08. Elevated death state 0x12, original death/pain frame selection,
+direction-cache invalidation, native pain/death SFX, Hamerstein ending-FLI
+handoff, and the final Dracula-Bat resource swap remain follow-up work.
+
 ## Projected-row player damage seed
 
 The player-to-GUARD damage base no longer uses the temporary generic 1..64
