@@ -5,6 +5,7 @@
 #include "id_sd.h"
 #include "id_us.h"
 #include "g_mapinfo.h"
+#include "g_shared/a_nitemareguard.h"
 #include "m_random.h"
 #include "actor.h"
 #include "thingdef/thingdef.h"
@@ -782,6 +783,13 @@ int NitemareGuardClassCode(AActor *ob)
 	if(ob == NULL)
 		return -1;
 
+	if(ob->IsKindOf(NATIVE_CLASS(NitemareGuard)))
+	{
+		ANitemareGuard *guard = static_cast<ANitemareGuard *>(ob);
+		if(guard->n3dObjectClass >= 0x08 && guard->n3dObjectClass <= 0x21)
+			return guard->n3dObjectClass;
+	}
+
 	if(ob->temp1 >= 0x08 && ob->temp1 <= 0x21)
 		return ob->temp1;
 
@@ -884,6 +892,12 @@ void NitemareDamageGuard(AActor *ob, AActor *attacker, unsigned damage)
 
 	if(scaled >= ob->health)
 	{
+		ANitemareGuard *guardRuntime =
+			ob->IsKindOf(NATIVE_CLASS(NitemareGuard)) ?
+				static_cast<ANitemareGuard *>(ob) : NULL;
+		if(guardRuntime != NULL)
+			guardRuntime->BeginLethalTransition();
+
 		ob->health = 0;
 		ob->flags &= ~FL_SHOOTABLE;
 		if(attacker != NULL)
@@ -905,19 +919,29 @@ void NitemareDamageGuard(AActor *ob, AActor *attacker, unsigned damage)
 
 	ob->health -= scaled;
 
-	// The original receiver invalidates GUARD+0x12 with 8 and enters a
-	// class/strategy-sensitive reaction. Until the complete GUARD scheduler is
-	// installed, ECWolf uses the inherited Pain state as the visible state-15
-	// placeholder and returns to this actor's Spawn state.
-	if(ob->PainState != NULL)
+	bool enterPainState = true;
+	if(ob->IsKindOf(NATIVE_CLASS(NitemareGuard)))
+		enterPainState = static_cast<ANitemareGuard *>(ob)->BeginPainReaction();
+
+	if(enterPainState && ob->PainState != NULL)
 		ob->SetState(ob->PainState);
 }
 
 ACTION_FUNCTION(A_NitemareInitGuardClass)
 {
 	ACTION_PARAM_INT(objectClass, 0);
-	if(self->temp1 < 0x08 || self->temp1 > 0x21)
-		self->temp1 = objectClass;
+
+	if(self->IsKindOf(NATIVE_CLASS(NitemareGuard)))
+		static_cast<ANitemareGuard *>(self)->ConfigureRuntimeClass(objectClass);
+
+	self->temp1 = objectClass;
+	return true;
+}
+
+ACTION_FUNCTION(A_NitemareGuardPainFinalize)
+{
+	if(self->IsKindOf(NATIVE_CLASS(NitemareGuard)))
+		static_cast<ANitemareGuard *>(self)->FinishPainReaction();
 	return true;
 }
 
@@ -925,9 +949,14 @@ ACTION_FUNCTION(A_NitemareGuardDeathFinalize)
 {
 	const int objectClass = NitemareGuardClassCode(self);
 
+	if(self->IsKindOf(NATIVE_CLASS(NitemareGuard)))
+		static_cast<ANitemareGuard *>(self)->FinalizeDeathRuntime();
+
 	if(objectClass == 0x11)
 	{
-		// State-09 Dracula finalizer: phase 1 becomes Dracula-Bat.
+		// Runtime class/state now matches the original Dracula-Bat transition.
+		// The visual sequence remains the existing actor sprite until SEQDEF
+		// sequence 0x23 is wired into the IMG animation layer.
 		self->temp1 = 0x14;
 		self->health = 255;
 		self->flags |= FL_SHOOTABLE | FL_SOLID;
@@ -935,8 +964,6 @@ ACTION_FUNCTION(A_NitemareGuardDeathFinalize)
 		return true;
 	}
 
-	// Ordinary state-09 -> state-0A terminal handling. Keep the final visual
-	// frame available but remove collision and further weapon eligibility.
 	self->flags &= ~(FL_SHOOTABLE | FL_SOLID);
 	return true;
 }
