@@ -136,6 +136,46 @@ trailer. The loader exposes:
 This prepares native palette selection without baking a palette into IMG
 conversion.
 
+## Basic health and ammunition pickups
+
+The generated OBJECT layer now promotes the two high-volume pickup families
+needed by ordinary map traversal from structural placeholders to native ECWolf
+inventory actors.
+
+### FOOD / class 0x33
+
+Raw IDs are stable across the three supplied episode catalogs:
+
+- 0x12 Red potion -> +20 health,
+- 0x13 Blue potion -> +10 health.
+
+The original rule is `20 >> subtype` with a strict `HP < 100` acceptance
+gate. Generated actors derive from ECWolf `Health`, use max amount 100, and
+therefore leave the pickup in the world when the player is already at 100 HP.
+
+### AMMO / class 0x39
+
+The three stable raw IDs are mapped to shared logical ammo pools:
+
+- 0x29 Silver bullets -> `NitemareSilverAmmo`,
+- 0x2A Plasma power cell -> `NitemarePlasmaAmmo`,
+- 0x2B Spell book / wand power -> `NitemareWandAmmo`.
+
+Each pickup adds 20 and each logical pool has maximum 100. Episode-specific
+sprite actors derive from these common base ammo classes, so collecting the
+same ammunition in another episode does not create a second logical pool.
+
+ECWolf's native Health/Ammo rejection behavior also preserves the original
+important world-state boundary: a pickup rejected at capacity stays in the
+map. The original Win16 code briefly permits values such as 99+20 before a
+later HUD/state clamp; the current ECWolf implementation clamps during the
+pickup operation, so final gameplay state matches but that transient internal
+ordering is not claimed byte-identical.
+
+Weapon ownership, starting-ammo grants, Crystal Ball/Magic Eye charge,
+score-bearing health items and other pickup classes remain separate follow-up
+work.
+
 ## Transportation Chamber doors
 
 The Transportation Chamber wall families are now handled as the ID-card
