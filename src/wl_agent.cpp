@@ -1448,12 +1448,8 @@ static FRandom pr_nitemarepistol("NitemareSilverPistol");
 
 ACTION_FUNCTION(A_NitemareSilverHitscan)
 {
-	ACTION_PARAM_INT(maxdamage, 0);
-
 	if(!self->player || self->player->ReadyWeapon == NULL)
 		return false;
-	if(maxdamage <= 0)
-		maxdamage = 64;
 
 	if(!self->player->ReadyWeapon->DepleteAmmo())
 		return false;
@@ -1480,7 +1476,9 @@ ACTION_FUNCTION(A_NitemareSilverHitscan)
 			continue;
 
 		const int guardClass = NitemareGuardClassCode(check);
-		const int rawDamage = 1 + (pr_nitemarepistol() % maxdamage);
+		const int projectionScale = R_NitemareProjectedDamageScale(check);
+		const int rawDamage = projectionScale > 0 ?
+			projectionScale * 8 + (pr_nitemarepistol() % 25) : 0;
 		if(guardClass >= 0)
 			NitemareApplyGuardDamage(
 				check, self, NitemareSilverDamageTransform(rawDamage, guardClass));
