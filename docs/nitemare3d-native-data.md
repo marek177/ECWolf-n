@@ -136,6 +136,40 @@ trailer. The loader exposes:
 This prepares native palette selection without baking a palette into IMG
 conversion.
 
+## Player projectile GUARD collision
+
+The bootstrap projectile weapons now use a Nitemare-specific GUARD collision
+branch inside ECWolf's projectile thinker while leaving every non-Nitemare
+projectile on the existing ECWolf collision path.
+
+For actors derived from `NitemarePlayerProjectile`:
+
+- GUARD collision uses the recovered axis-aligned test
+  `abs(dx) <= 9 && abs(dy) <= 9` Nitemare world units,
+- the 9-unit tolerance is converted using the 64-units-per-tile world scale,
+- a successful proximity hit enters impact even when class/weapon resistance
+  transforms damage to zero,
+- Wand shots use selector-1 resistance behavior,
+- Single- and Multi-Plasma share the selector-0/default plasma resistance
+  behavior,
+- the same Nitemare player->enemy difficulty factor used by Silver Pistol is
+  applied after class/weapon scaling.
+
+The projectile resistance matrix now includes the verified Wand-only Ghost
+vulnerability, Wand immunity on Alien #1/#2, Baddie /256 behavior for plasma,
+Vampira/Dracula/Gargoyle/robot class divisors, and the zero normal-damage
+Penelope/Cannon branches. Hamerstein remains gated off until the recovered
+0x7E52 state has an explicit ECWolf representation.
+
+### Remaining fidelity boundary
+
+The **collision box and class transform are recovered behavior**, but the
+projectile's raw damage base is still bootstrap. The current branch uses a
+generic positive base before the verified transform. Original DDA/Bresenham
+trajectory state, cached projected OBJECT+0x18 damage input, native flight and
+impact sequence frames, and exact wall/object cell collision remain future
+native combat work.
+
 ## Silver Pistol multi-target hitscan
 
 Selector 2 now uses a Nitemare-specific hitscan action instead of ECWolf's
