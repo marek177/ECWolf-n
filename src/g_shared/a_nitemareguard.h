@@ -14,6 +14,7 @@ public:
 	bool BeginPainReaction();
 	void FinishPainReaction();
 	void BeginLethalTransition();
+	bool AdvanceDeathSettling();
 	void FinalizeDeathRuntime();
 
 	BYTE n3dObjectClass;
