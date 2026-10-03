@@ -3,6 +3,7 @@
 #include "m_random.h"
 #include "g_mapinfo.h"
 #include "wl_state.h"
+#include "wl_game.h"
 
 IMPLEMENT_CLASS(NitemareGuard)
 
@@ -24,6 +25,7 @@ void ANitemareGuard::Serialize(FArchive &arc)
 		<< n3dMoveY
 		<< n3dVerticalBobStep
 		<< n3dTimer
+		<< n3dSlowAccumulator
 		<< n3dElevation;
 }
 
@@ -44,6 +46,7 @@ void ANitemareGuard::ConfigureRuntimeClass(int objectClass, int variant)
 	n3dMoveY = 0;
 	n3dVerticalBobStep = 0;
 	n3dTimer = 0;
+	n3dSlowAccumulator = 0;
 	n3dElevation = 0;
 
 	// Classes using the square one-tile proximity result instead of LOS for
@@ -310,7 +313,7 @@ static void NitemarePlanStrategy0(ANitemareGuard *guard, AActor *player)
 	const int deltaY32 = halfTile != 0 ? (player->y - guard->y) / halfTile : 0;
 
 	const int directionChoice =
-		pr_nitemareguard() & (guard->n3dPerception == 0 ? 3 : 7);
+		pr_nitemareguard() & (guard->n3dPerceptionSucceeded == 0 ? 3 : 7);
 
 	if(directionChoice == 0)
 	{
@@ -328,7 +331,7 @@ static void NitemarePlanStrategy0(ANitemareGuard *guard, AActor *player)
 		guard->n3dMoveY = deltaY32 < 0 ? -8 : deltaY32 > 0 ? 8 : 0;
 	}
 
-	if(guard->n3dProximity != 0)
+	if(guard->n3dWithinOneTile != 0)
 		guard->n3dTimer = 8;
 	else if(guard->n3dPerception == 0)
 		guard->n3dTimer = 0x18;
@@ -365,11 +368,11 @@ void ANitemareGuard::Tick()
 
 	const int dxWorld = abs(player->x - x);
 	const int dyWorld = abs(player->y - y);
-	n3dProximity =
+	n3dWithinOneTile =
 		(dxWorld <= TILEGLOBAL && dyWorld <= TILEGLOBAL) ? 1 : 0;
 
 	const bool prefilter = NitemareFacingPrefilter(this, player);
-	n3dPerception = prefilter && CheckLine(player, this) ? 1 : 0;
+	n3dPerceptionSucceeded = prefilter && CheckLine(player, this) ? 1 : 0;
 
 	switch(n3dCurrentState)
 	{
@@ -391,7 +394,7 @@ void ANitemareGuard::Tick()
 		case 0x03:
 		{
 			const bool attackEligible =
-				n3dTransitionControl == 0 ? n3dProximity != 0 : n3dPerception != 0;
+				n3dTransitionControl == 0 ? n3dWithinOneTile != 0 : n3dPerceptionSucceeded != 0;
 			if(attackEligible)
 			{
 				n3dTimer = 1;
@@ -440,7 +443,7 @@ void ANitemareGuard::Tick()
 
 		case 0x07:
 		case 0x08:
-			if(n3dPerception != 0)
+			if(n3dPerceptionSucceeded != 0)
 				n3dCurrentState = 0x02;
 			break;
 
