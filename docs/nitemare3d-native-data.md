@@ -136,6 +136,83 @@ trailer. The loader exposes:
 This prepares native palette selection without baking a palette into IMG
 conversion.
 
+## Active generic GUARD runtime
+
+The native Nitemare GUARD bridge now carries the state fields needed by the
+recovered AI loop instead of representing enemies as static shootable sprites.
+
+Serialized per-actor runtime now includes:
+
+- original OBJECT/GUARD class,
+- strategy,
+- current and next state,
+- directional/result-octant cache,
+- transition-control/perception mode,
+- cached perception and one-tile proximity results,
+- signed X/Y movement components,
+- vertical-bob direction,
+- state timer,
+- elevation.
+
+Class-relative OBJECT variants are passed into
+`A_NitemareInitGuardClass(class, variant)`. The first four variants initialize
+N/E/S/W facing; the second four variants of eight-entry GUARD families start
+with the matching +/-8 movement vector and enter state 0x08.
+
+The active `A_NitemareGuardThink` slice currently implements:
+
+- state 0x01 delay -> 0x02,
+- state 0x02 alert/setup bridge -> 0x03,
+- state 0x03 attack-gate evaluation or movement planning,
+- state 0x04 attack recheck/contact-damage application -> 0x05,
+- state 0x05 strategy-0 local movement planning,
+- state 0x06 movement/timer -> 0x03,
+- state 0x07 facing-aware perception -> 0x02,
+- state 0x08 moving patrol/reacquire path,
+- state 0x13 strategy-3 timed displacement.
+
+Perception keeps the recovered independent +/-8-tile bounds and octant mask.
+State 0x03/0x04 use the recovered transition-control rule: mode 0 selects the
+one-tile square proximity result; modes 1/2 select the LOS/perception result.
+The state-7 path keeps facing/FOV enabled, while the attack gate bypasses facing,
+matching the two audited call forms of the original perception helper.
+
+Strategy-0 movement preserves the recovered `-8/0/+8` components and timer
+rules:
+
+- within one tile -> timer 8,
+- not perceived -> timer 0x18,
+- perceived/distant -> random 8..15,
+- Easy doubles the perceived/distant timer,
+- Hard halves it.
+
+Movement probes use the recovered 16-world-unit side extent and 8-world-unit
+step. X/Y blocking is evaluated independently; state 0x08 rejects the whole
+coordinate commit when either axis is blocked, while state 0x06 commits the
+surviving axis. When both axes are blocked in state 0x06, one stored component
+is randomly reversed for the next attempt.
+
+The state-04 contact attack uses the recovered distance metric and class switch.
+It intentionally leaves the unresolved class-0x16 global gate on the known
+non-gated branch (33 pre-difficulty) instead of equating the independent
+0x7E52 selector with ECWolf's episode number.
+
+### Remaining GUARD AI fidelity
+
+This is the first active runtime slice, not the complete original GUARD engine.
+Still separate:
+
+- exact SEQDEF alert/attack/recovery animation timing,
+- alert/attack/pain/death SND.DAT bindings,
+- strategy-1 low-HP nearest-door retreat and state 0x11,
+- state-0x08 TURN/RETREAT marker handling,
+- ordinary GUARD bump-open door semantics,
+- Cannon 0x0E/0x0F/0x10 cycle,
+- ACTIONSPOT/Dancers state 0x14,
+- exact map-object occupancy byte bookkeeping,
+- Omnificent/processing-gate behavior,
+- live parity for movement ordering and simultaneous door occupancy.
+
 ## GUARD damage, pain and death receiver
 
 Player weapon damage now converges on one Nitemare-specific GUARD receiver
