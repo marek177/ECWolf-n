@@ -25,6 +25,12 @@ void ANitemareGuard::ConfigureRuntimeClass(int objectClass)
 	n3dTimer = 0;
 	n3dElevation = 0;
 
+	// Bat / Dracula-Bat / Ghost use the recovered 10..35 vertical-bob
+	// range during ordinary runtime. The placeholder GUARD AI does not yet
+	// perform that bob cycle, so seed the minimum active elevation here.
+	if(objectClass == 0x08 || objectClass == 0x14 || objectClass == 0x1A)
+		n3dElevation = 10;
+
 	if(objectClass == 0x19)
 	{
 		// Cannon: strategy 4, native state cycle starts at 0x0E.
@@ -96,6 +102,30 @@ void ANitemareGuard::BeginLethalTransition()
 	n3dCurrentState = n3dElevation > 0 ? 0x12 : 0x00;
 	n3dNextState = 0x09;
 	n3dTimer = 0;
+}
+
+bool ANitemareGuard::AdvanceDeathSettling()
+{
+	if(n3dCurrentState != 0x12)
+		return true;
+
+	if(n3dElevation > 0)
+	{
+		n3dElevation -= 5;
+		if(n3dElevation < 0)
+			n3dElevation = 0;
+	}
+
+	if(n3dTimer > 0)
+		--n3dTimer;
+
+	if(n3dElevation == 0 && n3dTimer == 0)
+	{
+		n3dCurrentState = n3dNextState; // fatal path stores 0x09
+		return true;
+	}
+
+	return false;
 }
 
 void ANitemareGuard::FinalizeDeathRuntime()
