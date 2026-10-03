@@ -80,6 +80,7 @@ actor Actor native
 	action native A_MeleeAttack(int damage, float accuracy = 0.6275, string hitsound = "", string misssound = "*");
 	action native A_MonsterRefire(int chance, state abort);
 	action native A_NitemareInitGuardClass(int objectclass);
+	action native A_NitemareGuardDeathStep();
 	action native A_NitemareGuardDeathFinalize();
 	action native A_NitemareGuardPainFinalize();
 	action native A_Pain();
