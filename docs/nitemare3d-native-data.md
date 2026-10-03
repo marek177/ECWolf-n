@@ -213,6 +213,57 @@ Still separate:
 - Omnificent/processing-gate behavior,
 - live parity for movement ordering and simultaneous door occupancy.
 
+## Live generic GUARD runtime
+
+The native `NitemareGuard` actor now carries the recovered runtime fields needed
+for the common GUARD loop: class, strategy, current/next state, octant/result
+octant, transition control, movement vector, perception/proximity cache, timer,
+slow-scheduler accumulator and vertical elevation.
+
+The implemented generic strategy-0 path follows the recovered Win16 state flow:
+
+`07/08 -> 02 -> 03 -> 04 -> 05 -> 06 -> 03`.
+
+Implemented behavior:
+
+- GUARD logic is gated to an approximately 8 Hz slow scheduler rather than
+  running once per ECWolf render/game tick;
+- perception rejects targets beyond 8 tiles on either axis;
+- facing uses the recovered 3-octant mask around the current octant;
+- the attack decision caches both LOS/perception and one-tile proximity;
+- Dracula/Bat/Ghost-style proximity-controlled classes use the recovered
+  transition-control mode instead of the normal LOS result;
+- generic strategy-0 planning uses signed `delta / 32`, random mask `&3`
+  without perception or `&7` with perception, and movement components
+  `-8, 0, +8`;
+- close targets use timer 8, unseen targets use 0x18, visible targets use
+  random 8..15 with Easy x2 / Hard /2 timing;
+- state 0x06 performs movement and returns to state 0x03 when its timer expires;
+- state 0x04 applies the recovered class-specific guard-to-player damage family,
+  then routes through ECWolf player damage/death handling;
+- if the player is killed, the attacking GUARD enters the recovered no-local-action
+  state 0x0B;
+- Bat, Dracula-Bat and Ghost use the recovered 10..35 vertical bob range.
+
+The contact-damage class family currently matches the closed table for Bat,
+Frankenstein/Mummy, Skeleton, the base/half/base-quarter classes, Dracula-family
+random damage and Cannon=100. Hamerstein currently uses the ordinary 100 branch:
+the special 33-damage condition also depends on the still-unrepresented 51A6
+event flag and is intentionally not guessed.
+
+### Remaining GUARD fidelity boundary
+
+Movement currently reuses ECWolf's `TryWalk/MoveObj` world collision after the
+Nitemare planner has selected the vector. The original `FUN_71DC/700A` uses
+axis-separated +/-0x10 probes, per-axis commit rules, door-controller side
+effects, state-08 all-or-nothing commits and a random single-axis bounce when
+state 06 is blocked on both axes. That collision/bounce layer is the next GUARD
+runtime target.
+
+Sequence banks +0x34/+0x36/+0x38 are not yet bound to native IMG/SEQDEF animation
+frames, so states 02/03/04 currently retain their recovered ordering using short
+wrapper timing rather than final original animation timing.
+
 ## GUARD damage, pain and death receiver
 
 Player weapon damage now converges on one Nitemare-specific GUARD receiver
