@@ -17,6 +17,7 @@
 #include "a_inventory.h"
 #include "a_keys.h"
 #include "m_random.h"
+#include "r_sprites.h"
 #include "g_mapinfo.h"
 #include "thinker.h"
 #include "wl_draw.h"
@@ -1255,6 +1256,88 @@ ACTION_FUNCTION(A_CustomPunch)
 }
 
 static FRandom pr_cwbullet("CustomWpBullet");
+static bool NitemareActorIsRendererVisible(AActor *actor)
+{
+	if(actor == NULL || map == NULL)
+		return false;
+
+	MapSpot spot = map->GetSpot(actor->tilex, actor->tiley, 0);
+	if(spot == NULL)
+		return false;
+	if(spot->visible)
+		return true;
+
+	MapSpot east = spot->GetAdjacent(MapTile::East);
+	MapSpot north = spot->GetAdjacent(MapTile::North);
+	MapSpot west = spot->GetAdjacent(MapTile::West);
+	MapSpot south = spot->GetAdjacent(MapTile::South);
+
+	MapSpot neighbors[8] =
+	{
+		east,
+		east ? east->GetAdjacent(MapTile::North) : NULL,
+		north,
+		north ? north->GetAdjacent(MapTile::West) : NULL,
+		west,
+		west ? west->GetAdjacent(MapTile::South) : NULL,
+		south,
+		south ? south->GetAdjacent(MapTile::East) : NULL
+	};
+
+	for(unsigned int i = 0; i < 8; ++i)
+	{
+		if(neighbors[i] != NULL && neighbors[i]->visible && neighbors[i]->tile == NULL)
+			return true;
+	}
+	return false;
+}
+
+static FRandom pr_nitemarepistol("NitemareSilverPistol");
+
+ACTION_FUNCTION(A_NitemareSilverHitscan)
+{
+	ACTION_PARAM_INT(maxdamage, 0);
+
+	if(!self->player || self->player->ReadyWeapon == NULL)
+		return false;
+	if(maxdamage <= 0)
+		maxdamage = 64;
+
+	if(!self->player->ReadyWeapon->DepleteAmmo())
+		return false;
+
+	if(!(self->player->ReadyWeapon->weaponFlags & WF_NOALERT))
+		madenoise = true;
+
+	for(AActor::Iterator check = AActor::GetIterator(); check.Next();)
+	{
+		if(check == self || !(check->flags & FL_SHOOTABLE) ||
+			(check->player && !Net::FriendlyFire()))
+		{
+			continue;
+		}
+
+		const int dxTiles = abs(static_cast<int>(check->tilex) - static_cast<int>(self->tilex));
+		const int dyTiles = abs(static_cast<int>(check->tiley) - static_cast<int>(self->tiley));
+		if(MAX(dxTiles, dyTiles) > 16)
+			continue;
+
+		if(!NitemareActorIsRendererVisible(check))
+			continue;
+
+		TransformActor(check);
+		if(check->viewheight == 0 || !R_ActorCrossesAimCenter(check, 4))
+			continue;
+
+		if(!CheckLine(check, self))
+			continue;
+
+		DamageActor(check, self, 1 + (pr_nitemarepistol() % maxdamage));
+	}
+
+	return true;
+}
+
 ACTION_FUNCTION(A_GunAttack)
 {
 	enum
