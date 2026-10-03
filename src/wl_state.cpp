@@ -1237,6 +1237,18 @@ static void NitemareGuardTickState13(
 		NitemareGuardTryMove(guard, self, player);
 }
 
+static bool NitemareRemoteCannonsEnabled(AActor *player)
+{
+	if(player == NULL)
+		return false;
+
+	static const ClassDef *disabledClass = NULL;
+	if(disabledClass == NULL)
+		disabledClass = ClassDef::FindClass("NitemareRemoteCannonsDisabled");
+
+	return disabledClass == NULL || player->FindInventory(disabledClass) == NULL;
+}
+
 ACTION_FUNCTION(A_NitemareGuardThink)
 {
 	if(!self->IsKindOf(NATIVE_CLASS(NitemareGuard)) || self->health <= 0)
@@ -1248,16 +1260,11 @@ ACTION_FUNCTION(A_NitemareGuardThink)
 		return true;
 	self->target = player;
 
-	// Special scripted state families are kept separate until their own
-	// recovered runtime is installed.
-	if(guard->n3dStrategy == 4 ||
-		guard->n3dCurrentState == 0x0A ||
+	// Remaining scripted state families stay separate from the generic loop.
+	if(guard->n3dCurrentState == 0x0A ||
 		guard->n3dCurrentState == 0x0B ||
 		guard->n3dCurrentState == 0x0C ||
 		guard->n3dCurrentState == 0x0D ||
-		guard->n3dCurrentState == 0x0E ||
-		guard->n3dCurrentState == 0x0F ||
-		guard->n3dCurrentState == 0x10 ||
 		guard->n3dCurrentState == 0x11 ||
 		guard->n3dCurrentState == 0x14)
 	{
