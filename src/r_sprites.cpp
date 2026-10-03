@@ -156,6 +156,37 @@ FTexture *R_GetAMSprite(AActor *actor, angle_t rotangle, bool &flip)
 	return tex;
 }
 
+
+bool R_ActorCrossesAimCenter(AActor *actor, int slackPixels)
+{
+	if(actor == NULL || actor->state == NULL || actor->viewheight < 8 ||
+		actor->sprite == SPR_NONE || actor->sprite >= loadedSprites.Size() ||
+		loadedSprites[actor->sprite].numFrames == 0)
+	{
+		return false;
+	}
+
+	const Sprite &spr =
+		spriteFrames[loadedSprites[actor->sprite].frames + actor->state->frame];
+	FTexture *tex;
+	if(spr.rotations == 0)
+		tex = TexMan[spr.texture[0]];
+	else
+		tex = TexMan[spr.texture[CalcRotate(actor)]];
+
+	if(tex == NULL)
+		return false;
+
+	const double dxScale =
+		(actor->viewheight / 256.0) * FIXED2FLOAT(FixedDiv(actor->scaleX, yaspect));
+	const double left =
+		actor->viewx - tex->GetScaledLeftOffsetDouble() * dxScale;
+	const double right =
+		left + tex->GetScaledWidthDouble() * dxScale;
+
+	return left - slackPixels < centerx && right + slackPixels > centerx;
+}
+
 void R_InstallSprite(Sprite &frame, FTexture *tex, int dir, bool mirror)
 {
 	if(dir < -1 || dir >= 8)
