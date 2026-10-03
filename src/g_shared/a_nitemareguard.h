@@ -10,7 +10,7 @@ class ANitemareGuard : public AActor
 public:
 	void Serialize(FArchive &arc);
 
-	void ConfigureRuntimeClass(int objectClass);
+	void ConfigureRuntimeClass(int objectClass, int variant);
 	bool BeginPainReaction();
 	void FinishPainReaction();
 	void BeginLethalTransition();
@@ -22,6 +22,14 @@ public:
 	BYTE n3dCurrentState;
 	BYTE n3dNextState;
 	BYTE n3dDirectionCache;
+	BYTE n3dOctant;
+	BYTE n3dResultOctant;
+	BYTE n3dTransitionControl;
+	BYTE n3dPerceptionSucceeded;
+	BYTE n3dWithinOneTile;
+	signed char n3dMoveX;
+	signed char n3dMoveY;
+	signed char n3dVerticalBobStep;
 	WORD n3dTimer;
 	short n3dElevation;
 };
