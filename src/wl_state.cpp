@@ -980,7 +980,7 @@ static void NitemareGuardPlanStrategy0(
 			timer >>= 1;
 		else if(difficulty == 0)
 			timer <<= 1;
-		guard->n3dTimer = static_cast<WORD>(timer);
+		guard->n3dTimer = static_cast<short>(timer);
 	}
 
 	guard->n3dCurrentState = 0x06;
@@ -1208,7 +1208,7 @@ static int NitemareGuardContactDamage(
 
 static void NitemareGuardEnterState13(ANitemareGuard *guard)
 {
-	guard->n3dTimer = static_cast<WORD>((pr_nitemareguardai() % 0x50) + 8);
+	guard->n3dTimer = static_cast<short>((pr_nitemareguardai() % 0x50) + 8);
 	guard->n3dCurrentState = 0x13;
 	switch(guard->n3dOctant & 7)
 	{
