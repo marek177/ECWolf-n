@@ -1144,6 +1144,168 @@ static void NitemareGuardPlanStrategy0(
 	NitemareGuardUpdateOctant(guard, guard->n3dMoveX, guard->n3dMoveY);
 }
 
+static bool NitemareGuardTraceToTile(
+	AActor *self, int targetX, int targetY)
+{
+	if(self == NULL || map == NULL ||
+		targetX < 0 || targetY < 0 ||
+		targetX >= static_cast<int>(map->GetHeader().width) ||
+		targetY >= static_cast<int>(map->GetHeader().height))
+	{
+		return false;
+	}
+
+	int x = self->tilex;
+	int y = self->tiley;
+	const int dx = abs(targetX - x);
+	const int dy = abs(targetY - y);
+	const int sx = x < targetX ? 1 : -1;
+	const int sy = y < targetY ? 1 : -1;
+	int error = dx - dy;
+
+	for(int step = 0; step < 64; ++step)
+	{
+		if(x == targetX && y == targetY)
+			return true;
+
+		const int twiceError = error * 2;
+		if(twiceError > -dy)
+		{
+			error -= dy;
+			x += sx;
+		}
+		if(twiceError < dx)
+		{
+			error += dx;
+			y += sy;
+		}
+
+		if(x == targetX && y == targetY)
+			return true;
+
+		MapSpot spot = map->GetSpot(x, y, 0);
+		if(spot == NULL)
+			return false;
+
+		if(spot->tile != NULL)
+		{
+			bool passableDoor = false;
+			for(int side = 0; side < 4; ++side)
+			{
+				if(spot->slideAmount[side] == 0xffff)
+				{
+					passableDoor = true;
+					break;
+				}
+			}
+			if(!passableDoor)
+				return false;
+		}
+
+		if(NitemareGuardIntermediateActorBlocks(self, NULL, x, y))
+			return false;
+	}
+
+	return false;
+}
+
+static bool NitemareGuardFindNearestDoor(
+	AActor *self, fixed &targetWorldX, fixed &targetWorldY)
+{
+	if(self == NULL)
+		return false;
+
+	NitemareLoadGuardMarkerMetadata();
+	int bestDistance = 0x7fffffff;
+	bool found = false;
+
+	for(int y = 0; y < 64; ++y)
+	{
+		for(int x = 0; x < 64; ++x)
+		{
+			const BYTE wallClass = nitemareGuardMarkerClass[y * 64 + x];
+			if(wallClass < 0x31 || wallClass > 0x40)
+				continue;
+
+			const int distance =
+				abs(x - static_cast<int>(self->tilex)) +
+				abs(y - static_cast<int>(self->tiley));
+			if(distance >= bestDistance)
+				continue;
+
+			if(!NitemareGuardTraceToTile(self, x, y))
+				continue;
+
+			bestDistance = distance;
+			targetWorldX = x * TILEGLOBAL + TILEGLOBAL / 2;
+			targetWorldY = y * TILEGLOBAL + TILEGLOBAL / 2;
+			found = true;
+		}
+	}
+	return found;
+}
+
+static void NitemareGuardPlanStrategy1(
+	ANitemareGuard *guard, AActor *self, AActor *player)
+{
+	if(guard == NULL || self == NULL || player == NULL)
+		return;
+
+	if(self->health >= 0x7F)
+	{
+		NitemareGuardPlanStrategy0(guard, self, player);
+		return;
+	}
+
+	fixed targetX = 0;
+	fixed targetY = 0;
+	if(NitemareGuardFindNearestDoor(self, targetX, targetY))
+	{
+		guard->n3dMoveX = NitemareSignedStep(targetX - self->x);
+		guard->n3dMoveY = NitemareSignedStep(targetY - self->y);
+	}
+
+	guard->n3dTimer = 0x10;
+	guard->n3dCurrentState = 0x06;
+	NitemareGuardUpdateOctant(guard, guard->n3dMoveX, guard->n3dMoveY);
+}
+
+static void NitemareGuardPlanStrategy2(ANitemareGuard *guard)
+{
+	if(guard == NULL)
+		return;
+
+	guard->n3dTimer = static_cast<short>((pr_nitemareguardai() % 8) + 8);
+	guard->n3dCurrentState = 0x06;
+	NitemareGuardUpdateOctant(guard, guard->n3dMoveX, guard->n3dMoveY);
+}
+
+static void NitemareGuardPlanMovement(
+	ANitemareGuard *guard, AActor *self, AActor *player)
+{
+	if(guard == NULL)
+		return;
+
+	switch(guard->n3dStrategy)
+	{
+		case 0:
+			NitemareGuardPlanStrategy0(guard, self, player);
+			break;
+		case 1:
+			NitemareGuardPlanStrategy1(guard, self, player);
+			break;
+		case 2:
+			NitemareGuardPlanStrategy2(guard);
+			break;
+		default:
+			// Recovered strategies >=3 use the existing vector and common
+			// state-6 tail when they enter the movement planner.
+			guard->n3dCurrentState = 0x06;
+			NitemareGuardUpdateOctant(guard, guard->n3dMoveX, guard->n3dMoveY);
+			break;
+	}
+}
+
 static bool NitemareGuardPointBlocked(
 	AActor *self, AActor *player, fixed x, fixed y)
 {
@@ -1448,9 +1610,9 @@ ACTION_FUNCTION(A_NitemareGuardThink)
 			{
 				guard->n3dCurrentState = 0x04;
 			}
-			else if(guard->n3dStrategy == 0)
+			else
 			{
-				NitemareGuardPlanStrategy0(guard, self, player);
+				NitemareGuardPlanMovement(guard, self, player);
 				NitemareGuardTryMove(guard, self, player);
 			}
 			break;
@@ -1471,11 +1633,8 @@ ACTION_FUNCTION(A_NitemareGuardThink)
 			break;
 
 		case 0x05:
-			if(guard->n3dStrategy == 0)
-			{
-				NitemareGuardPlanStrategy0(guard, self, player);
-				NitemareGuardTryMove(guard, self, player);
-			}
+			NitemareGuardPlanMovement(guard, self, player);
+			NitemareGuardTryMove(guard, self, player);
 			break;
 
 		case 0x06:
