@@ -780,12 +780,52 @@ static bool BuildDefinitionXlat(FileReader *reader, int episode, bool walls, FSt
 
 						const bool keyInventory = objectClass == 0x2F || objectClass == 0x30;
 						const bool pentagramInventory = objectClass == 0x3C;
-						const bool inventory = keyInventory || pentagramInventory;
+						const bool healthPickup = objectClass == 0x33;
+						const bool ammoPickup = objectClass == 0x39;
+
+						FString parent;
+						FString properties;
+						if(keyInventory)
+						{
+							parent = " : Key";
+							properties = "\t+INVENTORY.ALWAYSPICKUP\n";
+						}
+						else if(pentagramInventory)
+						{
+							parent = " : Inventory";
+							properties =
+								"\t+INVENTORY.ALWAYSPICKUP\n"
+								"\tinventory.interhubamount 1\n";
+						}
+						else if(healthPickup)
+						{
+							parent = " : Health";
+							const int subtype = id >= 0x12 ? id - 0x12 : 0;
+							const int amount = subtype < 5 ? 20 >> subtype : 0;
+							properties.Format(
+								"\tinventory.amount %d\n"
+								"\tinventory.maxamount 100\n",
+								amount);
+						}
+						else if(ammoPickup)
+						{
+							if(id == 0x29)
+								parent = " : NitemareSilverAmmo";
+							else if(id == 0x2A)
+								parent = " : NitemarePlasmaAmmo";
+							else if(id == 0x2B)
+								parent = " : NitemareWandAmmo";
+						}
+
+						const bool inventory = keyInventory || pentagramInventory ||
+							healthPickup || (ammoPickup && !parent.IsEmpty());
+						if(!inventory)
+							properties += "\tradius 32\n";
+
 						FString actor;
 						actor.Format(
 							"actor %s%s\n"
 							"{\n"
-							"%s"
 							"%s"
 							"%s"
 							"\tstates\n"
@@ -795,10 +835,8 @@ static bool BuildDefinitionXlat(FileReader *reader, int episode, bool walls, FSt
 							"\t\t\tstop\n"
 							"\t}\n"
 							"}\n\n",
-							actorName.GetChars(),
-							keyInventory ? " : Key" : pentagramInventory ? " : Inventory" : "",
-							inventory ? "\t+INVENTORY.ALWAYSPICKUP\n" : "\tradius 32\n",
-							pentagramInventory ? "\tinventory.interhubamount 1\n" : "",
+							actorName.GetChars(), parent.GetChars(),
+							properties.GetChars(),
 							(objectClass >= 0x08 && objectClass <= 0x2D) ? "\t+SOLID\n" : "",
 							sprite.GetChars());
 						*decorate += actor;
