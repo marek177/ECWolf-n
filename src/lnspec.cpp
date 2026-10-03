@@ -1095,7 +1095,7 @@ static bool NitemareHasGeneratedInventory(AActor *activator, unsigned int rawId)
 	{
 		FString className;
 		className.Format("N3DE%dO%02X", episode, rawId);
-		const ClassDef *cls = ClassDef::FindClass(className);
+		const ClassDef *cls = ClassDef::FindClass(className.GetChars());
 		if(cls != NULL && activator->FindInventory(cls) != NULL)
 			return true;
 	}
