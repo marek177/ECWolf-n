@@ -136,6 +136,31 @@ trailer. The loader exposes:
 This prepares native palette selection without baking a palette into IMG
 conversion.
 
+## Transportation Chamber doors
+
+The Transportation Chamber wall families are now handled as the ID-card
+controlled sliding doors used by the original USE dispatcher, not as level
+exits themselves.
+
+Recovered runtime classes 0x39/0x3A correspond to `DOORVI` / `DOORHI`.
+Their class-relative variant selects the ID-card bit:
+
+- Chamber Door 1 -> red ID card / Nitemare lock 205,
+- Chamber Door 2 -> yellow ID card / Nitemare lock 206.
+
+On successful credential check the original path enters the same ordinary door
+activation state machine. The actual level transition remains a separate
+`LEVEL_UP` wall behind or beyond the chamber door.
+
+The generated translator therefore gives `DOORVI` vertical slide geometry
+and `DOORHI` horizontal slide geometry, applies the matching ID-card lock,
+and uses the existing `Door_Open` trigger path.
+
+This change also fixes the generated ECWolf trigger for every horizontal
+Nitemare sliding-door family: horizontal doors now pass `arg4 = 1` to
+`Door_Open` so EVDoor moves on the horizontal axis. The visual
+`offsethorizontal` flag alone was not enough to select the thinker direction.
+
 ## Remote control panels and remote doors
 
 Episode 2's remote-control path is now wired from the original WALLS catalog
