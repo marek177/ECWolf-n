@@ -1115,6 +1115,93 @@ int NitemareClimbChoice(bool canUp, bool canDown)
 	}
 }
 
+int NitemareFloorChoice(int currentFloor, const bool *enabled, int floorCount)
+{
+	if(enabled == NULL || floorCount <= 0)
+		return 0;
+	if(floorCount > 10)
+		floorCount = 10;
+
+	int selectable[10];
+	int count = 0;
+	for(int floor = 0; floor < floorCount; ++floor)
+	{
+		if(enabled[floor])
+			selectable[count++] = floor + 1;
+	}
+	if(count == 0)
+		return 0;
+
+	int selected = 0;
+	for(int i = 0; i < count; ++i)
+	{
+		if(selectable[i] == currentFloor)
+		{
+			selected = i;
+			break;
+		}
+	}
+
+	dirtype lastDirection = dir_None;
+	IN_ClearKeysDown();
+	WaitKeyUp();
+
+	for(;;)
+	{
+		FString prompt("Select floor:\n\n");
+		for(int i = 0; i < count; ++i)
+		{
+			prompt += i == selected ? "> " : "  ";
+			FString floor;
+			floor.Format("Floor %d", selectable[i]);
+			prompt += floor;
+			if(selectable[i] == currentFloor)
+				prompt += " (current)";
+			if(i + 1 < count)
+				prompt += "\n";
+		}
+		Message(prompt.GetChars());
+
+		ControlInfo ci;
+		ReadAnyControl(&ci);
+		if(ci.dir != lastDirection)
+		{
+			if(ci.dir == dir_North || ci.dir == dir_West)
+			{
+				selected = selected == 0 ? count - 1 : selected - 1;
+				SD_PlaySound("menu/move1");
+			}
+			else if(ci.dir == dir_South || ci.dir == dir_East)
+			{
+				selected = (selected + 1) % count;
+				SD_PlaySound("menu/move1");
+			}
+		}
+
+		if(Keyboard[sc_Return] || Keyboard[sc_Space] || ci.button0)
+		{
+			const int result = selectable[selected];
+			SD_PlaySound("menu/activate");
+			IN_ClearKeysDown();
+			WaitKeyUp();
+			DrawPlayScreen();
+			return result;
+		}
+
+		if(Keyboard[sc_Escape] || ci.button1)
+		{
+			SD_PlaySound("menu/escape");
+			IN_ClearKeysDown();
+			WaitKeyUp();
+			DrawPlayScreen();
+			return 0;
+		}
+
+		lastDirection = ci.dir;
+		SDL_Delay(5);
+	}
+}
+
 bool Confirm (const char *string)
 {
 	bool xit = false;
