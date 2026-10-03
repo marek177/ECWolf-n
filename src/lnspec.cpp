@@ -1103,6 +1103,52 @@ FUNC(Nitemare_ClimbWarp)
 	return NitemareTeleportFromWallSpot(target, activator);
 }
 
+FUNC(Nitemare_ElevatorWarp)
+{
+	if(!IWad::CheckGameFilter("Nitemare3D") || spot == NULL ||
+		activator == NULL || activator->player == NULL)
+		return 0;
+
+	if(control[activator->player->GetPlayerNum()].buttonheld[bt_use])
+		return 0;
+	control[activator->player->GetPlayerNum()].buttonheld[bt_use] = true;
+
+	const unsigned int rawId = static_cast<unsigned int>(args[0]);
+	const unsigned int minId = static_cast<unsigned int>(args[1]);
+	const unsigned int maxId = static_cast<unsigned int>(args[2]);
+	if(rawId < minId || maxId < minId)
+		return 0;
+
+	bool enabled[10] = {false, false, false, false, false,
+		false, false, false, false, false};
+	int floorCount = 0;
+	const unsigned int definedCount = MIN<unsigned int>(maxId - minId + 1, 10);
+	for(unsigned int floor = 0; floor < definedCount; ++floor)
+	{
+		const unsigned int targetRaw = minId + floor;
+		MapSpot target = NitemareFindWallDeltaTarget(
+			spot, rawId, static_cast<int>(targetRaw) - static_cast<int>(rawId));
+		if(target != NULL)
+		{
+			enabled[floor] = true;
+			floorCount = floor + 1;
+		}
+	}
+
+	if(floorCount == 0)
+		return 0;
+
+	const int currentFloor = static_cast<int>(rawId - minId + 1);
+	const int selectedFloor = NitemareFloorChoice(currentFloor, enabled, floorCount);
+	if(selectedFloor <= 0 || selectedFloor == currentFloor)
+		return 0;
+
+	const int targetRaw = static_cast<int>(minId) + selectedFloor - 1;
+	MapSpot target = NitemareFindWallDeltaTarget(
+		spot, rawId, targetRaw - static_cast<int>(rawId));
+	return NitemareTeleportFromWallSpot(target, activator);
+}
+
 FUNC(Exit_Secret)
 {
 	
