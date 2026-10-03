@@ -136,6 +136,30 @@ trailer. The loader exposes:
 This prepares native palette selection without baking a palette into IMG
 conversion.
 
+## Crystal Ball / Magic Eye charge pickups
+
+The two automap-support resources are now represented as shared persistent
+capacity-aware pools:
+
+- OBJECT class 0x3A / raw 0x1A Crystal Ball -> +20 to
+  `NitemareCrystalCharge`, max 100,
+- OBJECT class 0x3B / raw 0x19 Magic Eye -> +20 to
+  `NitemareMagicEyeCharge`, max 100.
+
+The recovered Win16 player block stores these resources at 0x4C42 and 0x4C43.
+Both are saved with the player state, decremented only while their associated
+automap feature is active, and are not part of the normal level-setup
+key/card reset. The ECWolf pools therefore use `inventory.interhubamount 1`
+so their amounts survive ordinary level transitions.
+
+The same persistence correction is applied to the three Nitemare ammunition
+pools. Colored keys and ID cards intentionally remain level-local.
+
+This commit implements pickup/storage/capacity semantics only. The Crystal
+Ball/Magic Eye activation flags, slow-tick consumption, guard-marker cadence,
+low-power parity gating and map-noise rendering remain a separate automap
+runtime layer.
+
 ## Basic health and ammunition pickups
 
 The generated OBJECT layer now promotes the two high-volume pickup families
