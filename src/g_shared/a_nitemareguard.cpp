@@ -11,36 +11,85 @@ void ANitemareGuard::Serialize(FArchive &arc)
 		<< n3dCurrentState
 		<< n3dNextState
 		<< n3dDirectionCache
+		<< n3dOctant
+		<< n3dResultOctant
+		<< n3dTransitionControl
+		<< n3dPerceptionSucceeded
+		<< n3dWithinOneTile
+		<< n3dMoveX
+		<< n3dMoveY
+		<< n3dVerticalBobStep
 		<< n3dTimer
 		<< n3dElevation;
 }
 
-void ANitemareGuard::ConfigureRuntimeClass(int objectClass)
+void ANitemareGuard::ConfigureRuntimeClass(int objectClass, int variant)
 {
 	n3dObjectClass = static_cast<BYTE>(objectClass);
 	n3dStrategy = 0;
 	n3dCurrentState = 7;
 	n3dNextState = 2;
-	n3dDirectionCache = 0;
+	n3dDirectionCache = 8;
+	n3dOctant = static_cast<BYTE>((variant & 3) * 2);
+	n3dResultOctant = 8;
+	n3dTransitionControl = 1;
+	n3dPerceptionSucceeded = 0;
+	n3dWithinOneTile = 0;
+	n3dMoveX = 0;
+	n3dMoveY = 0;
+	n3dVerticalBobStep = 0;
 	n3dTimer = 0;
 	n3dElevation = 0;
 
-	// Bat / Dracula-Bat / Ghost use the recovered 10..35 vertical-bob
-	// range during ordinary runtime. The placeholder GUARD AI does not yet
-	// perform that bob cycle, so seed the minimum active elevation here.
-	if(objectClass == 0x08 || objectClass == 0x14 || objectClass == 0x1A)
-		n3dElevation = 10;
+	// Classes using the square one-tile proximity result instead of LOS for
+	// the state-3/4 attack gate.
+	if(objectClass == 0x08 || objectClass == 0x09 || objectClass == 0x0A ||
+		objectClass == 0x11 || objectClass == 0x14 || objectClass == 0x1A)
+	{
+		n3dTransitionControl = 0;
+	}
+
+	// Gargoyles use recovered strategy 3 and the proximity decision mode.
+	if(objectClass == 0x12 || objectClass == 0x13)
+	{
+		n3dStrategy = 3;
+		n3dTransitionControl = 0;
+	}
+
+	if(objectClass == 0x15 || objectClass == 0x16)
+		n3dNextState = 0;
 
 	if(objectClass == 0x19)
 	{
-		// Cannon: strategy 4, native state cycle starts at 0x0E.
 		n3dStrategy = 4;
 		n3dCurrentState = 0x0E;
 	}
-	else if(objectClass == 0x16)
+
+	if(objectClass == 0x21)
 	{
-		// Dr. Hamerstein keeps generic strategy but initializes next state 0.
+		n3dCurrentState = 0;
 		n3dNextState = 0;
+	}
+
+	// Bat / Dracula-Bat / Ghost use the recovered 10..35 vertical-bob range.
+	if(objectClass == 0x08 || objectClass == 0x14 || objectClass == 0x1A)
+	{
+		n3dElevation = 10;
+		n3dVerticalBobStep = 1;
+	}
+
+	// The second four variants in an eight-way GUARD definition are moving
+	// N/E/S/W starts. Their original initializer enters state 0x08.
+	if((variant & 7) >= 4)
+	{
+		switch(variant & 3)
+		{
+			case 0: n3dMoveY = -8; break;
+			case 1: n3dMoveX =  8; break;
+			case 2: n3dMoveY =  8; break;
+			case 3: n3dMoveX = -8; break;
+		}
+		n3dCurrentState = 0x08;
 	}
 }
 
