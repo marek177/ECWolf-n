@@ -102,7 +102,7 @@ actor NitemareSilverPistol : NitemareWeapon
 			TNT1 A 1 A_WeaponReady
 			loop
 		Fire:
-			TNT1 A 0 A_NitemareSilverHitscan(64)
+			TNT1 A 0 A_NitemareSilverHitscan()
 			TNT1 A 13
 			goto Ready
 	}

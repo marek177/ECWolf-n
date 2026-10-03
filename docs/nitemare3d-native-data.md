@@ -136,6 +136,49 @@ trailer. The loader exposes:
 This prepares native palette selection without baking a palette into IMG
 conversion.
 
+## Projected-row player damage seed
+
+The player-to-GUARD damage base no longer uses the temporary generic 1..64
+bootstrap source.
+
+The recovered original formula is:
+
+`seed = 8 * (OBJECT.last_projected_y_cache - viewport_center_y) + RNG % 25`.
+
+The projection audit also establishes that the cached row is the viewport
+center plus a perspective scale term. Nitemare's renderer derives sprite
+height as:
+
+`projectedSpriteHeight = sourceImageHeight * projectionScale / 32`.
+
+The ECWolf bridge therefore derives the equivalent Nitemare projection scale
+from the already-cached actor projection:
+
+`projectionScale = projectedSpriteHeight * 32 / sourceImageHeight`.
+
+`R_NitemareProjectedDamageScale()` uses the actual current sprite texture,
+ECWolf cached `actor->viewheight`, actor Y scale, and texture scaling to
+recover that term. The common raw damage seed is then:
+
+`rawDamage = projectionScale * 8 + random()%25`.
+
+The two hit routes intentionally differ in cache freshness:
+
+- Silver Pistol targeting first refreshes `TransformActor()`, matching the
+  original current-render-generation requirement before reading the damage
+  cache.
+- Projectile collision does **not** refresh the target projection. It consumes
+  the actor's existing cached `viewheight`; if the actor has never acquired a
+  valid projection, the raw damage path yields zero. This preserves the
+  original stale-cache architecture rather than silently recomputing damage
+  geometry on impact.
+
+The exact fixed-point projection constants and historical slot-reuse artifacts
+of the 16-bit OBJECT pool cannot be byte-identical inside ECWolf's different
+renderer, but the recovered dependency/order is now represented: perspective
+projection cache -> x8 + RNG%25 -> class/weapon transform -> difficulty ->
+GUARD HP.
+
 ## Player projectile GUARD collision
 
 The bootstrap projectile weapons now use a Nitemare-specific GUARD collision
@@ -163,12 +206,10 @@ Penelope/Cannon branches. Hamerstein remains gated off until the recovered
 
 ### Remaining fidelity boundary
 
-The **collision box and class transform are recovered behavior**, but the
-projectile's raw damage base is still bootstrap. The current branch uses a
-generic positive base before the verified transform. Original DDA/Bresenham
-trajectory state, cached projected OBJECT+0x18 damage input, native flight and
-impact sequence frames, and exact wall/object cell collision remain future
-native combat work.
+The collision box, cached projected damage seed and class transform are now
+represented. Original DDA/Bresenham trajectory state, native flight/impact
+sequence frames, exact wall/object cell collision and 16-bit fixed-point
+projection details remain future native combat work.
 
 ## Silver Pistol multi-target hitscan
 
@@ -218,13 +259,11 @@ Nitemare MAPINFO difficulty factors now preserve the opposing original trends:
 
 ### Remaining fidelity boundary
 
-The candidate/LOS/resistance behavior is substantially closer to the original,
-but the **raw damage producer is still bootstrap**. The current action generates
-a generic positive base before the verified class transform. The original uses
-the target's cached projected OBJECT+0x18 value relative to the view reference,
-then adds random()%25. That projected-row producer, state 00/09/0A exclusion,
-pain/death sequence state machine and Hamerstein special gate remain the next
-combat-runtime layer.
+The candidate/LOS/resistance and projected-row seed are now represented. The
+remaining Silver-Pistol fidelity gaps are GUARD state 00/09/0A exclusion,
+pain/death sequence scheduling, the Hamerstein special gate, and unavoidable
+fixed-point/projection differences between the original 16-bit renderer and
+ECWolf.
 
 ## Eight-slot player projectile gate
 
