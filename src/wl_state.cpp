@@ -14,6 +14,7 @@
 #include "wl_net.h"
 #include "wl_play.h"
 #include "wl_state.h"
+#include "w_wad.h"
 #include "templates.h"
 
 /*
@@ -763,6 +764,162 @@ bool MoveObj (AActor *ob, int32_t move)
 ===================
 */
 
+static FString nitemareGuardMarkerMap;
+static BYTE nitemareGuardMarkerClass[64 * 64];
+static BYTE nitemareGuardMarkerVariant[64 * 64];
+
+static void NitemareLoadGuardMarkerMetadata()
+{
+	if(nitemareGuardMarkerMap.CompareNoCase(gamestate.mapname) == 0)
+		return;
+
+	nitemareGuardMarkerMap = gamestate.mapname;
+	memset(nitemareGuardMarkerClass, 0, sizeof(nitemareGuardMarkerClass));
+	memset(nitemareGuardMarkerVariant, 0, sizeof(nitemareGuardMarkerVariant));
+
+	FString lumpName;
+	lumpName.Format("%sGM", gamestate.mapname);
+	const int lump = Wads.CheckNumForName(lumpName.GetChars());
+	if(lump < 0)
+		return;
+
+	FileReader *reader = Wads.ReopenLumpNum(lump);
+	if(reader == NULL)
+		return;
+
+	const long length = reader->GetLength();
+	if(length <= 0)
+	{
+		delete reader;
+		return;
+	}
+
+	char *data = new char[length + 1];
+	if(reader->Read(data, length) != length)
+	{
+		delete[] data;
+		delete reader;
+		return;
+	}
+	delete reader;
+	data[length] = 0;
+
+	char *line = data;
+	while(*line != 0)
+	{
+		char *lineEnd = strchr(line, '\n');
+		if(lineEnd != NULL)
+			*lineEnd = 0;
+
+		unsigned int x = 0, y = 0, wallClass = 0, variant = 0;
+		if(sscanf(line, "%u %u %u %u", &x, &y, &wallClass, &variant) == 4 &&
+			x < 64 && y < 64 && wallClass <= 0xFF && variant <= 0xFF)
+		{
+			const unsigned int index = y * 64 + x;
+			nitemareGuardMarkerClass[index] = static_cast<BYTE>(wallClass);
+			nitemareGuardMarkerVariant[index] = static_cast<BYTE>(variant);
+		}
+
+		if(lineEnd == NULL)
+			break;
+		line = lineEnd + 1;
+	}
+
+	delete[] data;
+}
+
+static bool NitemareGuardMarkerAt(
+	unsigned int x, unsigned int y, BYTE &wallClass, BYTE &variant)
+{
+	NitemareLoadGuardMarkerMetadata();
+	if(x >= 64 || y >= 64)
+		return false;
+
+	const unsigned int index = y * 64 + x;
+	wallClass = nitemareGuardMarkerClass[index];
+	variant = nitemareGuardMarkerVariant[index];
+	return wallClass != 0;
+}
+
+static void NitemareGuardDirectionalStep(ANitemareGuard *guard)
+{
+	if(guard == NULL)
+		return;
+
+	const signed char scale = guard->n3dStrategy == 2 ? 16 : 8;
+	switch(guard->n3dOctant & 7)
+	{
+		case 0:
+		case 7: guard->n3dMoveX = 0; guard->n3dMoveY = -scale; break;
+		case 1:
+		case 2: guard->n3dMoveX = scale; guard->n3dMoveY = 0; break;
+		case 3:
+		case 4: guard->n3dMoveX = 0; guard->n3dMoveY = scale; break;
+		default: guard->n3dMoveX = -scale; guard->n3dMoveY = 0; break;
+	}
+}
+
+static void NitemareGuardApplySpawnMarker(ANitemareGuard *guard, AActor *self)
+{
+	if(guard == NULL || self == NULL || guard->n3dSpawnMarkerApplied != 0)
+		return;
+
+	guard->n3dSpawnMarkerApplied = 1;
+	BYTE wallClass = 0;
+	BYTE variant = 0;
+	if(!NitemareGuardMarkerAt(self->tilex, self->tiley, wallClass, variant))
+		return;
+
+	if(wallClass == 0x42 || wallClass == 0x46)
+		guard->n3dStrategy = 2;
+	else if(wallClass == 0x43)
+		guard->n3dStrategy = 1;
+}
+
+static void NitemareGuardApplyState08Marker(ANitemareGuard *guard, AActor *self)
+{
+	if(guard == NULL || self == NULL || guard->n3dCurrentState != 0x08)
+		return;
+
+	const fixed localX = self->x & (TILEGLOBAL - 1);
+	const fixed localY = self->y & (TILEGLOBAL - 1);
+	if(localX != TILEGLOBAL / 2 || localY != TILEGLOBAL / 2)
+		return;
+
+	BYTE wallClass = 0;
+	BYTE variant = 0;
+	if(!NitemareGuardMarkerAt(self->tilex, self->tiley, wallClass, variant))
+		return;
+
+	if(wallClass == 0x41)
+	{
+		guard->n3dOctant = variant & 7;
+		NitemareGuardDirectionalStep(guard);
+		return;
+	}
+
+	if(wallClass != 0x42)
+		return;
+
+	if(guard->n3dMoveX == 0 && guard->n3dMoveY == 0)
+	{
+		if(variant == 8)
+		{
+			guard->n3dCurrentState = 0x03;
+			return;
+		}
+
+		guard->n3dOctant = variant & 7;
+		NitemareGuardDirectionalStep(guard);
+		return;
+	}
+
+	guard->n3dMoveX = 0;
+	guard->n3dMoveY = 0;
+	guard->n3dCurrentState = 0x03;
+	guard->n3dOctant = (guard->n3dOctant + 4) & 7;
+}
+
 static FRandom pr_nitemareguardai("NitemareGuardAI");
 
 static AActor *NitemareGuardPlayerTarget(AActor *guard)
@@ -1259,6 +1416,7 @@ ACTION_FUNCTION(A_NitemareGuardThink)
 	if(player == NULL)
 		return true;
 	self->target = player;
+	NitemareGuardApplySpawnMarker(guard, self);
 
 	// Remaining scripted state families stay separate from the generic loop.
 	if(guard->n3dCurrentState == 0x0A ||
@@ -1343,6 +1501,7 @@ ACTION_FUNCTION(A_NitemareGuardThink)
 		}
 
 		case 0x08:
+			NitemareGuardApplyState08Marker(guard, self);
 			NitemareGuardTryMove(guard, self, player);
 			if(guard->n3dNextState == 0x02 &&
 				NitemareGuardEvaluatePerception(guard, self, player, false, false))
