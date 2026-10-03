@@ -710,6 +710,10 @@ static bool BuildDefinitionXlat(FileReader *reader, int episode, bool walls, FSt
 						if(lock != 0)
 							lockArg.Format("\t\targ3 = %d;\n", lock);
 
+						FString directionArg;
+						if(doorAxis == 2)
+							directionArg = "\t\targ4 = 1;\n";
+
 						FString trigger;
 						trigger.Format(
 							"\ttrigger %u\n\t{\n"
@@ -717,11 +721,12 @@ static bool BuildDefinitionXlat(FileReader *reader, int episode, bool walls, FSt
 							"\t\targ1 = 16;\n"
 							"\t\targ2 = 300;\n"
 							"%s"
+							"%s"
 							"\t\tplayeruse = true;\n"
 							"\t\trepeatable = true;\n"
 							"%s"
 							"\t}\n",
-							id, lockArg.GetChars(),
+							id, lockArg.GetChars(), directionArg.GetChars(),
 							doorAxis == 1 ?
 								"\t\tactivatenorth = false;\n\t\tactivatesouth = false;\n" :
 								"\t\tactivateeast = false;\n\t\tactivatewest = false;\n");
