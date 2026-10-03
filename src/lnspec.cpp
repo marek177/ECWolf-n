@@ -1086,6 +1086,33 @@ static unsigned int NitemarePlayerIdCardMask(AActor *activator)
 	return mask;
 }
 
+static bool NitemareHasGeneratedInventory(AActor *activator, unsigned int rawId)
+{
+	if(activator == NULL)
+		return false;
+
+	for(int episode = 1; episode <= 3; ++episode)
+	{
+		FString className;
+		className.Format("N3DE%dO%02X", episode, rawId);
+		const ClassDef *cls = ClassDef::FindClass(className);
+		if(cls != NULL && activator->FindInventory(cls) != NULL)
+			return true;
+	}
+	return false;
+}
+
+static unsigned int NitemarePentagramMask(AActor *activator)
+{
+	unsigned int mask = 0;
+	for(unsigned int index = 0; index < 4; ++index)
+	{
+		if(NitemareHasGeneratedInventory(activator, 0x1F + index))
+			mask |= 1u << index;
+	}
+	return mask;
+}
+
 FUNC(Nitemare_KeyPassage)
 {
 	if(!IWad::CheckGameFilter("Nitemare3D") || spot == NULL ||
@@ -1188,6 +1215,47 @@ FUNC(Nitemare_ElevatorWarp)
 		return 0;
 
 	const int targetRaw = static_cast<int>(minId) + selectedFloor - 1;
+	MapSpot target = NitemareFindWallDeltaTarget(
+		spot, rawId, targetRaw - static_cast<int>(rawId));
+	return NitemareTeleportFromWallSpot(target, activator);
+}
+
+FUNC(Nitemare_MirrorPortal)
+{
+	if(!IWad::CheckGameFilter("Nitemare3D") || spot == NULL ||
+		activator == NULL || activator->player == NULL)
+		return 0;
+
+	if(control[activator->player->GetPlayerNum()].buttonheld[bt_use])
+		return 0;
+	control[activator->player->GetPlayerNum()].buttonheld[bt_use] = true;
+
+	const int mode = args[2];
+	if(mode == 2)
+	{
+		NitemareNotice("The mirror crack'd\nfrom side to side!");
+		return 0;
+	}
+	if(mode != 1)
+		return 0;
+
+	const unsigned int mask = NitemarePentagramMask(activator);
+	if((mask & 0x0F) != 0x0F)
+	{
+		FString message("This is the portal to the\n\"Other Side\".");
+		if((mask & 0x01) == 0) message += "\nThe Red Pentagram";
+		if((mask & 0x02) == 0) message += "\nThe Green Pentagram";
+		if((mask & 0x04) == 0) message += "\nThe Blue Pentagram";
+		if((mask & 0x08) == 0) message += "\nThe Yellow Pentagram";
+		NitemareNotice(message.GetChars());
+		return 0;
+	}
+
+	const unsigned int rawId = static_cast<unsigned int>(args[0]);
+	const int targetRaw = args[1];
+	if(targetRaw < 0 || targetRaw > 255)
+		return 0;
+
 	MapSpot target = NitemareFindWallDeltaTarget(
 		spot, rawId, targetRaw - static_cast<int>(rawId));
 	return NitemareTeleportFromWallSpot(target, activator);
