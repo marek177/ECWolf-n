@@ -42,3 +42,5 @@
 #include "actors/nitemare/nitemarestate.txt"
 
 #include "actors/nitemare/nitemarepickups.txt"
+
+#include "actors/nitemare/nitemareweapons.txt"

@@ -136,6 +136,52 @@ trailer. The loader exposes:
 This prepares native palette selection without baking a palette into IMG
 conversion.
 
+## Bootstrap player weapons
+
+The native-data branch now exposes all four recovered Nitemare player weapons
+as real ECWolf Weapon inventory items and maps OBJECT class 0x36 pickups
+directly to them.
+
+Stable OBJECT IDs and runtime selectors are:
+
+- 0x25 / selector 0: Single bolt plasma gun,
+- 0x26 / selector 1: Magic Wand,
+- 0x27 / selector 2: Silver Pistol,
+- 0x28 / selector 3: Multi bolt plasma gun.
+
+Ammo routing follows the recovered executable:
+
+- selectors 0 and 3 share `NitemarePlasmaAmmo`,
+- selector 1 uses `NitemareWandAmmo`,
+- selector 2 uses `NitemareSilverAmmo`,
+- every accepted shot consumes one unit.
+
+Weapon acquisition is handled by native action
+`A_NitemareGiveWeapon(selector)`. It grants/owns the selected weapon, selects
+it, and **initializes** its associated ammo pool to 50. This intentionally
+uses assignment rather than +50, matching the class-0x36 pickup helper.
+
+The recovered slow-counter attempt thresholds are `[2,1,3,1]` for selectors
+0..3. At the nominal 8 Hz slow scheduler this corresponds to approximately
+250/125/375/125 ms. ECWolf DECORATE frame durations support only whole or
+half-tic values, so the bootstrap presentation uses the nearest legal
+durations (9 / 4.5 / 13 / 4.5 DECORATE time units). Selectors 0, 1 and 2 are
+marked non-autofire; selector 3 uses `A_ReFire` while FIRE remains held.
+
+The firing layer is deliberately split by the recovered runtime mode:
+
+- selectors 0, 1 and 3 currently spawn ECWolf projectile placeholders,
+- selector 2 currently uses ECWolf's hitscan action.
+
+These are enough to make weapon ownership, switching, ammo use and firing
+functional. They are **not** the final combat-fidelity layer. The temporary
+projectile actors use invisible bootstrap presentation, approximate movement
+and damage. ECWolf's generic hitscan chooses a closest target, whereas the
+original Silver Pistol can damage every eligible current-generation GUARD
+whose projected sprite overlaps the center aim interval and whose 16-cell LOS
+passes. The original eight-slot projectile pool, DDA movement, +/-9 GUARD hit
+test and class/weapon damage matrix remain the next native combat step.
+
 ## Crystal Ball / Magic Eye charge pickups
 
 The two automap-support resources are now represented as shared persistent

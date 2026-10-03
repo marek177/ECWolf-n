@@ -466,6 +466,60 @@ ACTION_FUNCTION(A_Succeed)
 	return true;
 }
 
+ACTION_FUNCTION(A_NitemareGiveWeapon)
+{
+	ACTION_PARAM_INT(selector, 0);
+
+	if(!self->player || selector < 0 || selector > 3)
+		return false;
+
+	static const char * const weaponClasses[4] =
+	{
+		"NitemareSinglePlasma",
+		"NitemareMagicWand",
+		"NitemareSilverPistol",
+		"NitemareMultiPlasma"
+	};
+	static const char * const ammoClasses[4] =
+	{
+		"NitemarePlasmaAmmo",
+		"NitemareWandAmmo",
+		"NitemareSilverAmmo",
+		"NitemarePlasmaAmmo"
+	};
+
+	const ClassDef *weaponClass = ClassDef::FindClass(weaponClasses[selector]);
+	const ClassDef *ammoClass = ClassDef::FindClass(ammoClasses[selector]);
+	if(weaponClass == NULL || ammoClass == NULL)
+		return false;
+
+	if(self->FindInventory(weaponClass) == NULL &&
+		!self->GiveInventory(weaponClass, 1, false))
+	{
+		return false;
+	}
+
+	AInventory *ammo = self->FindInventory(ammoClass);
+	if(ammo == NULL)
+	{
+		if(!self->GiveInventory(ammoClass, 50, false))
+			return false;
+		ammo = self->FindInventory(ammoClass);
+	}
+	if(ammo != NULL)
+	{
+		// Nitemare class-0x36 pickup initializes the selected ammunition
+		// pool to 50 instead of adding 50 to its old value.
+		ammo->amount = MIN<unsigned int>(50, ammo->maxamount);
+	}
+
+	AInventory *weaponInventory = self->FindInventory(weaponClass);
+	if(weaponInventory != NULL)
+		self->player->PendingWeapon = static_cast<AWeapon *>(weaponInventory);
+
+	return true;
+}
+
 ACTION_FUNCTION(A_WeaponGrin)
 {
 	StatusBar->WeaponGrin();
