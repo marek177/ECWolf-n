@@ -243,6 +243,13 @@ class EVDoor : public Thinker
 			return false;
 		}
 
+		bool ForceRemoteClose()
+		{
+			// Original Nitemare remote-close command writes the closing state
+			// directly and does not run the ordinary auto-close occupancy guard.
+			return ChangeState(Closing);
+		}
+
 		void Serialize(FArchive &arc)
 		{
 			BYTE state = this->state;
@@ -1183,7 +1190,7 @@ static bool NitemareSetRemoteDoorSpot(MapSpot door, bool open, bool horizontal, 
 	if(thinker != NULL)
 	{
 		if(!thinker->IsClosing())
-			return thinker->Reactivate(activator, false);
+			return thinker->ForceRemoteClose();
 		return false;
 	}
 
