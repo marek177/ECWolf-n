@@ -38,3 +38,5 @@
 #include "actors/blake/blakeweapons.txt"
 
 #include "actors/nitemare/nitemareplayer.txt"
+
+#include "actors/nitemare/nitemarestate.txt"
