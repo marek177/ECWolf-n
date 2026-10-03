@@ -561,6 +561,8 @@ static bool BuildDefinitionXlat(FileReader *reader, int episode, bool walls, FSt
 						sprite.Format("N%d%02X", episode, id);
 
 						const bool keyInventory = objectClass == 0x2F || objectClass == 0x30;
+						const bool pentagramInventory = objectClass == 0x3C;
+						const bool inventory = keyInventory || pentagramInventory;
 						FString actor;
 						actor.Format(
 							"actor %s%s\n"
@@ -574,8 +576,9 @@ static bool BuildDefinitionXlat(FileReader *reader, int episode, bool walls, FSt
 							"\t\t\tstop\n"
 							"\t}\n"
 							"}\n\n",
-							actorName.GetChars(), keyInventory ? " : Key" : "",
-							keyInventory ? "\t+INVENTORY.ALWAYSPICKUP\n" : "\tradius 32\n",
+							actorName.GetChars(),
+							keyInventory ? " : Key" : pentagramInventory ? " : Inventory" : "",
+							inventory ? "\t+INVENTORY.ALWAYSPICKUP\n" : "\tradius 32\n",
 							(objectClass >= 0x08 && objectClass <= 0x2D) ? "\t+SOLID\n" : "",
 							sprite.GetChars());
 						*decorate += actor;
