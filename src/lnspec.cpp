@@ -179,7 +179,7 @@ class EVDoor : public Thinker
 					if(amount >= 0xffff)
 					{
 						amount = 0xffff;
-						if(opentics < 0) // Negative delay means stay open
+						if(opentics == -1) // Legacy permanent/non-toggleable open.
 							Destroy();
 						else
 							ChangeState(Opened);
@@ -187,6 +187,8 @@ class EVDoor : public Thinker
 					spot->slideAmount[direction] = spot->slideAmount[direction+2] = amount;
 					break;
 				case Opened:
+					if(opentics == -2) // Nitemare remote door: latch open until explicit close.
+						break;
 					if(wait == 0)
 					{
 						if(CheckJammed(false))
