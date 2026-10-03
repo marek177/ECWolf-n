@@ -996,19 +996,69 @@ int NitemareComputeGuardAttackDamage(AActor *guard, AActor *player)
 	return damage;
 }
 
-ACTION_FUNCTION(A_NitemareGuardAttack)
+static int NitemareGuardPerceptionMode(int objectClass)
 {
-	if(self->target == NULL || self->target->player == NULL ||
-		self->target->player->health <= 0)
+	switch(objectClass)
 	{
+		case 0x08:
+		case 0x09:
+		case 0x0A:
+		case 0x11:
+		case 0x12:
+		case 0x13:
+		case 0x14:
+		case 0x1A:
+			return 0;
+		default:
+			return 1;
+	}
+}
+
+static bool NitemareGuardAttackEligible(AActor *guard, AActor *player)
+{
+	if(guard == NULL || player == NULL || player->player == NULL)
 		return false;
+
+	const int objectClass = NitemareGuardClassCode(guard);
+	const int dxTile =
+		static_cast<int>(player->tilex) - static_cast<int>(guard->tilex);
+	const int dyTile =
+		static_cast<int>(player->tiley) - static_cast<int>(guard->tiley);
+
+	const bool withinOneTile =
+		abs(player->x - guard->x) <= FRACUNIT &&
+		abs(player->y - guard->y) <= FRACUNIT;
+
+	bool perception = false;
+	if(abs(dxTile) <= 8 && abs(dyTile) <= 8)
+	{
+		// State 03/04 calls FUN_7494 with ignoreFacing=1. The remaining
+		// prefilter is therefore the fixed eight-tile axis range plus D50A LOS.
+		// CheckLine reproduces the wall/door portion here; the secondary
+		// object-plane property-bit filter is completed with the movement/LOS
+		// integration layer.
+		perception = CheckLine(player, guard);
 	}
 
-	const int damage = NitemareComputeGuardAttackDamage(self, self->target);
-	if(damage > 0)
-		self->target->player->TakeDamage(damage, self);
+	return NitemareGuardPerceptionMode(objectClass) == 0 ?
+		withinOneTile : perception;
+}
 
-	if(self->target->player->health <= 0)
+ACTION_FUNCTION(A_NitemareGuardAttack)
+{
+	AActor *player = players[0].mo;
+	if(player == NULL || player->player == NULL || player->player->health <= 0)
+		return false;
+
+	if(!NitemareGuardAttackEligible(self, player))
+		return false;
+
+	self->target = player;
+	const int damage = NitemareComputeGuardAttackDamage(self, player);
+	if(damage > 0)
+		player->player->TakeDamage(damage, self);
+
+	if(player->player->health <= 0)
 	{
 		const Frame *postKill = self->FindState(FName("PostKill"));
 		if(postKill != NULL)
