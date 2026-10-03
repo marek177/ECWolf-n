@@ -30,7 +30,7 @@ public:
 	signed char n3dMoveX;
 	signed char n3dMoveY;
 	signed char n3dVerticalBobStep;
-	WORD n3dTimer;
+	short n3dTimer;
 	short n3dElevation;
 };
 
