@@ -1115,6 +1115,122 @@ static unsigned int NitemarePentagramMask(AActor *activator)
 	return mask;
 }
 
+static const ClassDef *NitemareStateClass(const char *name)
+{
+	return ClassDef::FindClass(name);
+}
+
+static bool NitemareHasState(AActor *activator, const char *name)
+{
+	const ClassDef *cls = NitemareStateClass(name);
+	return activator != NULL && cls != NULL && activator->FindInventory(cls) != NULL;
+}
+
+static void NitemareSetState(AActor *activator, const char *name, bool enabled)
+{
+	if(activator == NULL)
+		return;
+
+	const ClassDef *cls = NitemareStateClass(name);
+	if(cls == NULL)
+		return;
+
+	AInventory *existing = activator->FindInventory(cls);
+	if(enabled)
+	{
+		if(existing == NULL)
+			activator->GiveInventory(cls, 1, false);
+	}
+	else if(existing != NULL)
+	{
+		activator->RemoveInventory(existing);
+		existing->Destroy();
+	}
+}
+
+static const char *NitemareRemoteDoorStateName(unsigned int group)
+{
+	switch(group)
+	{
+		case 0: return "NitemareRemoteDoorState1";
+		case 1: return "NitemareRemoteDoorState2";
+		default: return NULL;
+	}
+}
+
+static bool NitemareSetRemoteDoorSpot(MapSpot door, bool open, bool horizontal, AActor *activator)
+{
+	if(door == NULL || door->tile == NULL)
+		return false;
+
+	EVDoor *thinker = NULL;
+	if(door->thinker != NULL && door->thinker->IsThinkerType<EVDoor>())
+		thinker = barrier_cast<EVDoor *>(door->thinker);
+
+	if(open)
+	{
+		if(thinker != NULL)
+		{
+			if(thinker->IsClosing())
+				return thinker->Reactivate(activator, false);
+			return false;
+		}
+
+		new EVDoor(door, 16, -2, horizontal, 0);
+		return true;
+	}
+
+	if(thinker != NULL)
+	{
+		if(!thinker->IsClosing())
+			return thinker->Reactivate(activator, false);
+		return false;
+	}
+
+	const unsigned int dir = horizontal ? 1 : 0;
+	if(door->slideAmount[dir] != 0 || door->slideAmount[dir + 2] != 0)
+	{
+		new EVDoor(door, 16, -2, horizontal, 0);
+		return true;
+	}
+	return false;
+}
+
+static bool NitemareRemoteDoorCommand(MapSpot source, unsigned int sourceRawId,
+	int verticalRawId, int horizontalRawId, bool open, AActor *activator)
+{
+	if(source == NULL || source->tile == NULL || source->plane == NULL ||
+		source->plane->gm == NULL)
+		return false;
+
+	const GameMap *gm = source->plane->gm;
+	const unsigned int currentIndex = gm->GetTileIndex(source->tile);
+	if(sourceRawId < currentIndex)
+		return false;
+
+	const unsigned int tileStart = sourceRawId - currentIndex;
+	const GameMap::Header &header = gm->GetHeader();
+	bool changed = false;
+
+	for(unsigned int y = 0; y < header.height; ++y)
+	{
+		for(unsigned int x = 0; x < header.width; ++x)
+		{
+			MapSpot candidate = gm->GetSpot(x, y, 0);
+			if(candidate == NULL || candidate->tile == NULL)
+				continue;
+
+			const unsigned int index = gm->GetTileIndex(candidate->tile);
+			const unsigned int rawId = tileStart + index;
+			if(verticalRawId >= 0 && rawId == static_cast<unsigned int>(verticalRawId))
+				changed |= NitemareSetRemoteDoorSpot(candidate, open, false, activator);
+			else if(horizontalRawId >= 0 && rawId == static_cast<unsigned int>(horizontalRawId))
+				changed |= NitemareSetRemoteDoorSpot(candidate, open, true, activator);
+		}
+	}
+	return changed;
+}
+
 FUNC(Nitemare_KeyPassage)
 {
 	if(!IWad::CheckGameFilter("Nitemare3D") || spot == NULL ||
@@ -1261,6 +1377,51 @@ FUNC(Nitemare_MirrorPortal)
 	MapSpot target = NitemareFindWallDeltaTarget(
 		spot, rawId, targetRaw - static_cast<int>(rawId));
 	return NitemareTeleportFromWallSpot(target, activator);
+}
+
+FUNC(Nitemare_RemoteControl)
+{
+	if(!IWad::CheckGameFilter("Nitemare3D") || spot == NULL ||
+		activator == NULL || activator->player == NULL)
+		return 0;
+
+	if(control[activator->player->GetPlayerNum()].buttonheld[bt_use])
+		return 0;
+
+	if(args[4] != 0 && !P_CheckKeys(activator, args[4], false))
+		return 0;
+
+	control[activator->player->GetPlayerNum()].buttonheld[bt_use] = true;
+
+	const unsigned int sourceRawId = static_cast<unsigned int>(args[0]);
+	const unsigned int group = static_cast<unsigned int>(args[1]);
+	const char *doorStateName = NitemareRemoteDoorStateName(group);
+	if(doorStateName == NULL)
+		return 0;
+
+	const bool doorsOpen = NitemareHasState(activator, doorStateName);
+	const bool cannonsEnabled = !NitemareHasState(activator, "NitemareRemoteCannonsDisabled");
+	const int choice = NitemareRemoteChoice(doorsOpen, cannonsEnabled);
+
+	switch(choice)
+	{
+		case 0: // Open remote doors (0x1E)
+			NitemareRemoteDoorCommand(spot, sourceRawId, args[2], args[3], true, activator);
+			NitemareSetState(activator, doorStateName, true);
+			return 1;
+		case 1: // Close remote doors (0x1F)
+			NitemareRemoteDoorCommand(spot, sourceRawId, args[2], args[3], false, activator);
+			NitemareSetState(activator, doorStateName, false);
+			return 1;
+		case 2: // Enable remote cannons (0x20)
+			NitemareSetState(activator, "NitemareRemoteCannonsDisabled", false);
+			return 1;
+		case 3: // Disable remote cannons (0x21)
+			NitemareSetState(activator, "NitemareRemoteCannonsDisabled", true);
+			return 1;
+		default:
+			return 0;
+	}
 }
 
 FUNC(Exit_Secret)
