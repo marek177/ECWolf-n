@@ -136,6 +136,40 @@ trailer. The loader exposes:
 This prepares native palette selection without baking a palette into IMG
 conversion.
 
+## Mirror / Other Side portal (WARP_S1 / WARP_S2)
+
+The special mirror family is now connected to the recovered pentagram progress
+logic.
+
+The executable path for mapped wall type 0x15 (`WARP_S1`) checks the four-bit
+pentagram mask in 0x4C45. The bits are:
+
+- bit 0: Red Pentagram,
+- bit 1: Green Pentagram,
+- bit 2: Blue Pentagram,
+- bit 3: Yellow Pentagram.
+
+OBJECT class 0x3C (raw IDs 0x1F..0x22) now generates real ECWolf Inventory
+pickups instead of non-interactive placeholder actors. Unlike colored keys and
+ID cards, the original 0x4C45 pentagram mask has no normal level-setup reset
+writer in the checked Win16 path; its writers are the pickup dispatcher and
+the Omnifarious cheat. Generated pentagrams therefore use
+`inventory.interhubamount 1` so progress survives ordinary map transitions.
+
+On USE:
+
+- `WARP_S1` with missing pentagrams shows the portal notice and the exact
+  missing color names,
+- with all four pentagrams it resolves the lowest raw ID belonging to
+  `WARP_S2`, computes `targetRaw - currentRaw`, and reuses the recovered
+  N/E/S/W free-neighbor relocation helper,
+- `WARP_S2` does not teleport back; it shows the original
+  `The mirror crack'd / from side to side!` notice.
+
+This follows Win16 `FUN_1010_C126`. Its success audio/event path is not yet
+bound to a named SND.DAT sound, so the portal transition currently omits that
+native event.
+
 ## Elevator floor selectors (WARP_E1..WARP_E8)
 
 The elevator family now follows the recovered Nitemare floor-selector path.
