@@ -763,6 +763,115 @@ bool MoveObj (AActor *ob, int32_t move)
 */
 
 static FRandom pr_damagemobj("ActorTakeDamage");
+static int NitemareGuardKillScore(int objectClass)
+{
+	static const short scores[0x1A] =
+	{
+		25,   75,   50,  100, 250, 150, 200, 100,
+		100,   0,   150, 150, 200, -1000, 1000, 100,
+		200,   0,    25, 100, 100, 250, 250, 200,
+		50,    0
+	};
+	if(objectClass < 0x08 || objectClass > 0x21)
+		return 0;
+	return scores[objectClass - 0x08];
+}
+
+int NitemareGuardClassCode(AActor *ob)
+{
+	if(ob == NULL)
+		return -1;
+
+	if(ob->temp1 >= 0x08 && ob->temp1 <= 0x21)
+		return ob->temp1;
+
+	for(unsigned int objectClass = 0x08; objectClass <= 0x21; ++objectClass)
+	{
+		FString name;
+		name.Format("NitemareGuardClass%02X", objectClass);
+		const ClassDef *base = ClassDef::FindClass(name.GetChars());
+		if(base != NULL && ob->GetClass()->IsDescendantOf(base))
+			return static_cast<int>(objectClass);
+	}
+	return -1;
+}
+
+void NitemareDamageGuard(AActor *ob, AActor *attacker, unsigned damage)
+{
+	if(ob == NULL || damage == 0 || ob->health <= 0)
+		return;
+
+	int scaled = FixedMul(static_cast<int>(damage), gamestate.difficulty->PlayerDamageFactor);
+	if(scaled <= 0)
+		return;
+	if(scaled > 255)
+		scaled = 255;
+
+	const int objectClass = NitemareGuardClassCode(ob);
+	if(objectClass < 0)
+	{
+		DamageActor(ob, attacker, static_cast<unsigned int>(scaled));
+		return;
+	}
+
+	if(attacker != NULL && attacker->player)
+		ob->target = attacker;
+
+	if(scaled >= ob->health)
+	{
+		ob->health = 0;
+		ob->flags &= ~FL_SHOOTABLE;
+
+		if(attacker != NULL && attacker->player)
+			attacker->player->GivePoints(NitemareGuardKillScore(objectClass));
+
+		const Frame *death = ob->FindState(NAME_Death);
+		if(death != NULL)
+			ob->SetState(death);
+		else
+			ob->Die();
+		return;
+	}
+
+	ob->health -= scaled;
+
+	// The original receiver invalidates GUARD+0x12 with 8 and enters a
+	// class/strategy-sensitive reaction. Until the complete GUARD scheduler is
+	// installed, ECWolf uses the inherited Pain state as the visible state-15
+	// placeholder and returns to this actor's Spawn state.
+	if(ob->PainState != NULL)
+		ob->SetState(ob->PainState);
+}
+
+ACTION_FUNCTION(A_NitemareInitGuardClass)
+{
+	ACTION_PARAM_INT(objectClass, 0);
+	if(self->temp1 < 0x08 || self->temp1 > 0x21)
+		self->temp1 = objectClass;
+	return true;
+}
+
+ACTION_FUNCTION(A_NitemareGuardDeathFinalize)
+{
+	const int objectClass = NitemareGuardClassCode(self);
+
+	if(objectClass == 0x11)
+	{
+		// State-09 Dracula finalizer: phase 1 becomes Dracula-Bat.
+		self->temp1 = 0x14;
+		self->health = 255;
+		self->flags |= FL_SHOOTABLE | FL_SOLID;
+		if(result != NULL)
+			result->JumpFrame = self->SpawnState;
+		return true;
+	}
+
+	// Ordinary state-09 -> state-0A terminal handling. Keep the final visual
+	// frame available but remove collision and further weapon eligibility.
+	self->flags &= ~(FL_SHOOTABLE | FL_SOLID);
+	return true;
+}
+
 void DamageActor (AActor *ob, AActor *attacker, unsigned damage)
 {
 	if (ob->player)
