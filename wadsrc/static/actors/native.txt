@@ -79,6 +79,8 @@ actor Actor native
 	action native A_LookEx(int flags = 0, float minseedist = 0, float maxseedist = 0, float maxheardist = 0, float fov = 180, state frame = "*"); // Alias
 	action native A_MeleeAttack(int damage, float accuracy = 0.6275, string hitsound = "", string misssound = "*");
 	action native A_MonsterRefire(int chance, state abort);
+	action native A_NitemareInitGuardClass(int objectclass);
+	action native A_NitemareGuardDeathFinalize();
 	action native A_Pain();
 	action native A_PlaySound(string soundname);
 	action native A_ScaleVelocity(float scale);
