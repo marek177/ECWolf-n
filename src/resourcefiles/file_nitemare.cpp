@@ -90,6 +90,17 @@ static bool IsOpenWallDefinitionClass(const char *begin, const char *end)
 		DefinitionTokenEquals(begin, end, "TRIGGER2");
 }
 
+static int NitemareDoorAxis(const char *begin, const char *end)
+{
+	if(DefinitionTokenEquals(begin, end, "DOORV") ||
+		DefinitionTokenEquals(begin, end, "DOORVC"))
+		return 1;
+	if(DefinitionTokenEquals(begin, end, "DOORH") ||
+		DefinitionTokenEquals(begin, end, "DOORHC"))
+		return 2;
+	return 0;
+}
+
 static int RecoveredObjectClassCode(const char *begin, const char *end)
 {
 	if(end - begin > 5 && strnicmp(begin, "GUARD", 5) == 0)
@@ -225,15 +236,38 @@ static bool BuildDefinitionXlat(FileReader *reader, int episode, bool walls, FSt
 				{
 					FString texture;
 					texture.Format("N%dW%02X", episode, id);
+
+					const int doorAxis = NitemareDoorAxis(classBegin, classEnd);
+					if(doorAxis != 0)
+					{
+						FString trigger;
+						trigger.Format(
+							"\ttrigger %u\n\t{\n"
+							"\t\taction = \"Nitemare_DoorUse\";\n"
+							"\t\targ0 = %d;\n"
+							"\t\tplayeruse = true;\n"
+							"\t\trepeatable = true;\n"
+							"%s"
+							"\t}\n",
+							id, doorAxis,
+							doorAxis == 1 ?
+								"\t\tactivatenorth = false;\n\t\tactivatesouth = false;\n" :
+								"\t\tactivateeast = false;\n\t\tactivatewest = false;\n");
+						xlat += trigger;
+					}
+
 					lineText.Format(
 						"\ttile %u\n\t{\n"
 						"\t\ttexturenorth = \"%s\";\n"
 						"\t\ttexturesouth = \"%s\";\n"
 						"\t\ttextureeast = \"%s\";\n"
 						"\t\ttexturewest = \"%s\";\n"
+						"%s"
 						"\t}\n",
 						id, texture.GetChars(), texture.GetChars(),
-						texture.GetChars(), texture.GetChars());
+						texture.GetChars(), texture.GetChars(),
+						doorAxis == 1 ? "\t\toffsetvertical = true;\n" :
+							doorAxis == 2 ? "\t\toffsethorizontal = true;\n" : "");
 				}
 				xlat += lineText;
 			}

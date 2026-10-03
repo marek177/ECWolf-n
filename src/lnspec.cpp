@@ -37,6 +37,7 @@
 #include "id_sd.h"
 #include "g_conversation.h"
 #include "lnspec.h"
+#include "nitemare_door_adapter.h"
 #include "actor.h"
 #include "m_random.h"
 #include "sndseq.h"
@@ -106,6 +107,18 @@ LineSpecialFunction Specials::LookupFunction(LineSpecials function)
 
 FUNC(NOP)
 {
+	return 0;
+}
+
+// Safe boundary: no EVDoor, thinker, geometry, zone or sound mutation until
+// original-update timing and world-unit projection have been calibrated.
+FUNC(Nitemare_DoorUse)
+{
+	if(!NitemareDoor::CanActivate(args[0]))
+	{
+		Printf("Nitemare door runtime unavailable: Win16 update timing and geometry conversion are unverified.\n");
+		return 0;
+	}
 	return 0;
 }
 
