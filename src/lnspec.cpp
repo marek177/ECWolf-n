@@ -48,6 +48,7 @@
 #include "wl_loadsave.h"
 #include "wl_menu.h"
 #include "wl_play.h"
+#include "w_wad.h"
 #include "g_mapinfo.h"
 #include "g_shared/a_keys.h"
 #include "thingdef/thingdef.h"
@@ -1048,6 +1049,43 @@ static MapSpot NitemareFindWallDeltaTarget(MapSpot source, unsigned int rawWallI
 	return NULL;
 }
 
+static unsigned int NitemareCurrentIdCardPresenceMask()
+{
+	FString lumpName;
+	lumpName.Format("%sIC", gamestate.mapname);
+	const int lump = Wads.CheckNumForName(lumpName.GetChars());
+	if(lump < 0)
+		return 0;
+
+	FileReader *reader = Wads.ReopenLumpNum(lump);
+	if(reader == NULL)
+		return 0;
+
+	char text[8];
+	memset(text, 0, sizeof(text));
+	long length = reader->GetLength();
+	if(length > static_cast<long>(sizeof(text) - 1))
+		length = sizeof(text) - 1;
+	if(length > 0 && reader->Read(text, length) != length)
+	{
+		delete reader;
+		return 0;
+	}
+	delete reader;
+
+	return static_cast<unsigned int>(strtoul(text, NULL, 10)) & 0x03;
+}
+
+static unsigned int NitemarePlayerIdCardMask(AActor *activator)
+{
+	unsigned int mask = 0;
+	if(P_CheckKeys(activator, 205, true))
+		mask |= 0x01;
+	if(P_CheckKeys(activator, 206, true))
+		mask |= 0x02;
+	return mask;
+}
+
 FUNC(Nitemare_KeyPassage)
 {
 	if(!IWad::CheckGameFilter("Nitemare3D") || spot == NULL ||
@@ -1100,6 +1138,58 @@ FUNC(Nitemare_ClimbWarp)
 		return 0;
 
 	MapSpot target = NitemareFindWallDeltaTarget(spot, rawId, delta);
+	return NitemareTeleportFromWallSpot(target, activator);
+}
+
+FUNC(Nitemare_ElevatorWarp)
+{
+	if(!IWad::CheckGameFilter("Nitemare3D") || spot == NULL ||
+		activator == NULL || activator->player == NULL)
+		return 0;
+
+	if(control[activator->player->GetPlayerNum()].buttonheld[bt_use])
+		return 0;
+	control[activator->player->GetPlayerNum()].buttonheld[bt_use] = true;
+
+	const unsigned int rawId = static_cast<unsigned int>(args[0]);
+	const unsigned int minId = static_cast<unsigned int>(args[1]);
+	const unsigned int maxId = static_cast<unsigned int>(args[2]);
+	if(rawId < minId || maxId < minId)
+		return 0;
+
+	bool enabled[10] = {false, false, false, false, false,
+		false, false, false, false, false};
+	int floorCount = 0;
+	const unsigned int staticCardMask = NitemareCurrentIdCardPresenceMask();
+	const unsigned int playerCardMask = NitemarePlayerIdCardMask(activator);
+	const unsigned int unavailableMask = staticCardMask ^ playerCardMask;
+
+	const unsigned int rawDefinedCount = maxId - minId + 1;
+	const unsigned int definedCount = rawDefinedCount < 10 ? rawDefinedCount : 10;
+	for(unsigned int floor = 0; floor < definedCount; ++floor)
+	{
+		const unsigned int targetRaw = minId + floor;
+		MapSpot target = NitemareFindWallDeltaTarget(
+			spot, rawId, static_cast<int>(targetRaw) - static_cast<int>(rawId));
+		if(target != NULL)
+		{
+			floorCount = floor + 1;
+			const bool cardBlocked = floor < 8 && (unavailableMask & (1u << floor)) != 0;
+			enabled[floor] = !cardBlocked;
+		}
+	}
+
+	if(floorCount == 0)
+		return 0;
+
+	const int currentFloor = static_cast<int>(rawId - minId + 1);
+	const int selectedFloor = NitemareFloorChoice(currentFloor, enabled, floorCount);
+	if(selectedFloor <= 0 || selectedFloor == currentFloor)
+		return 0;
+
+	const int targetRaw = static_cast<int>(minId) + selectedFloor - 1;
+	MapSpot target = NitemareFindWallDeltaTarget(
+		spot, rawId, targetRaw - static_cast<int>(rawId));
 	return NitemareTeleportFromWallSpot(target, activator);
 }
 

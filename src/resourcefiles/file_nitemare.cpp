@@ -157,6 +157,14 @@ static int BootstrapClimbGroup(const char *begin, const char *end)
 	return 0;
 }
 
+static int BootstrapElevatorGroup(const char *begin, const char *end)
+{
+	if(end - begin == 7 && strnicmp(begin, "WARP_E", 6) == 0 &&
+		begin[6] >= '1' && begin[6] <= '8')
+		return begin[6] - '0';
+	return 0;
+}
+
 static int DefinitionIdClimbGroup(const char *data, long length, unsigned int wantedId)
 {
 	const char *p = data;
@@ -205,6 +213,56 @@ static int DefinitionIdClimbGroup(const char *data, long length, unsigned int wa
 	}
 	return 0;
 }
+
+static int DefinitionIdElevatorGroup(const char *data, long length, unsigned int wantedId)
+{
+	const char *p = data;
+	const char *end = data + length;
+	while(p < end)
+	{
+		const char *line = p;
+		while(p < end && *p != '\n')
+			++p;
+		const char *lineEnd = p;
+		if(p < end)
+			++p;
+
+		if(lineEnd > line && lineEnd[-1] == '\r')
+			--lineEnd;
+		while(line < lineEnd && IsDefinitionSpace(*line))
+			++line;
+		while(lineEnd > line && IsDefinitionSpace(lineEnd[-1]))
+			--lineEnd;
+		if(line == lineEnd)
+			continue;
+
+		const char *tokens[8];
+		const char *scan = line;
+		bool complete = true;
+		for(int field = 0; field < 4; ++field)
+		{
+			while(scan < lineEnd && IsDefinitionSpace(*scan))
+				++scan;
+			if(scan == lineEnd)
+			{
+				complete = false;
+				break;
+			}
+			tokens[field * 2] = scan;
+			while(scan < lineEnd && !IsDefinitionSpace(*scan))
+				++scan;
+			tokens[field * 2 + 1] = scan;
+		}
+		if(!complete)
+			continue;
+
+		unsigned int id;
+		if(ParseDefinitionId(tokens[0], tokens[1], id) && id == wantedId)
+			return BootstrapElevatorGroup(tokens[6], tokens[7]);
+	}
+	return 0;
+}
+
 
 static int RecoveredObjectClassCode(const char *begin, const char *end)
 {
@@ -344,6 +402,33 @@ static bool BuildDefinitionXlat(FileReader *reader, int episode, bool walls, FSt
 				{
 					FString texture;
 					texture.Format("N%dW%02X", episode, id);
+
+					const int elevatorGroup = BootstrapElevatorGroup(classBegin, classEnd);
+					if(elevatorGroup != 0)
+					{
+						unsigned int minId = id;
+						unsigned int maxId = id;
+						for(unsigned int candidate = 0; candidate <= 0xFF; ++candidate)
+						{
+							if(DefinitionIdElevatorGroup(data, length, candidate) == elevatorGroup)
+							{
+								if(candidate < minId) minId = candidate;
+								if(candidate > maxId) maxId = candidate;
+							}
+						}
+
+						FString elevatorTrigger;
+						elevatorTrigger.Format(
+							"\ttrigger %u\n\t{\n"
+							"\t\taction = \"Nitemare_ElevatorWarp\";\n"
+							"\t\targ0 = %u;\n"
+							"\t\targ1 = %u;\n"
+							"\t\targ2 = %u;\n"
+							"\t\tplayeruse = true;\n"
+							"\t}\n",
+							id, id, minId, maxId);
+						xlat += elevatorTrigger;
+					}
 
 					const int climbGroup = BootstrapClimbGroup(classBegin, classEnd);
 					if(climbGroup != 0)
@@ -827,14 +912,39 @@ private:
 			marker.Format("N%dM%02u", episode, i + 1);
 			AddMarker(marker);
 
+			const int levelPosition = HeaderSize + i * LevelBytes;
 			FNitemareMapLump *planes = new FNitemareMapLump;
 			planes->Owner = this;
-			planes->Position = HeaderSize + i * LevelBytes;
+			planes->Position = levelPosition;
 			planes->Episode = episode;
 			planes->Level = i + 1;
 			planes->LumpSize = ConvertedLevelBytes;
 			planes->LumpNameSetup("PLANES");
 			Lumps.Push(planes);
+
+			// Preserve the level-initial static ID-card presence mask used by
+			// the original elevator floor menu. IDs 09/0A are the stable
+			// red/yellow IDCARD object IDs in OBJECTS.1-3.
+			BYTE raw[LevelBytes];
+			Reader->Seek(levelPosition, SEEK_SET);
+			if(Reader->Read(raw, LevelBytes) != LevelBytes)
+				return false;
+
+			unsigned int idCardMask = 0;
+			for(unsigned int cell = 0; cell < 64 * 64; ++cell)
+			{
+				const BYTE objectId = raw[cell * 2 + 1];
+				if(objectId == 0x09)
+					idCardMask |= 0x01;
+				else if(objectId == 0x0A)
+					idCardMask |= 0x02;
+			}
+
+			FString cardMetaName;
+			cardMetaName.Format("N%dM%02uIC", episode, i + 1);
+			FString cardMeta;
+			cardMeta.Format("%u", idCardMask);
+			AddMemory(cardMetaName, cardMeta);
 		}
 
 		FString headerName;

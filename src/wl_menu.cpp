@@ -1115,6 +1115,104 @@ int NitemareClimbChoice(bool canUp, bool canDown)
 	}
 }
 
+int NitemareFloorChoice(int currentFloor, const bool *enabled, int floorCount)
+{
+	if(enabled == NULL || floorCount <= 0)
+		return 0;
+	if(floorCount > 10)
+		floorCount = 10;
+
+	int enabledCount = 0;
+	for(int floor = 0; floor < floorCount; ++floor)
+		enabledCount += enabled[floor] ? 1 : 0;
+	if(enabledCount == 0)
+		return 0;
+
+	int selected = currentFloor >= 1 && currentFloor <= floorCount &&
+		enabled[currentFloor - 1] ? currentFloor - 1 : -1;
+	if(selected < 0)
+	{
+		for(int floor = 0; floor < floorCount; ++floor)
+		{
+			if(enabled[floor])
+			{
+				selected = floor;
+				break;
+			}
+		}
+	}
+
+	dirtype lastDirection = dir_None;
+	IN_ClearKeysDown();
+	WaitKeyUp();
+
+	for(;;)
+	{
+		FString prompt("Select floor:\n\n");
+		for(int floor = 0; floor < floorCount; ++floor)
+		{
+			prompt += floor == selected ? "> " : "  ";
+			FString label;
+			label.Format("Floor %d", floor + 1);
+			prompt += label;
+			if(floor + 1 == currentFloor)
+				prompt += " (current)";
+			if(!enabled[floor])
+				prompt += " [locked]";
+			if(floor + 1 < floorCount)
+				prompt += "\n";
+		}
+		Message(prompt.GetChars());
+
+		ControlInfo ci;
+		ReadAnyControl(&ci);
+		if(ci.dir != lastDirection)
+		{
+			int step = 0;
+			if(ci.dir == dir_North || ci.dir == dir_West)
+				step = -1;
+			else if(ci.dir == dir_South || ci.dir == dir_East)
+				step = 1;
+
+			if(step != 0)
+			{
+				int candidate = selected;
+				for(int tries = 0; tries < floorCount; ++tries)
+				{
+					candidate = (candidate + step + floorCount) % floorCount;
+					if(enabled[candidate])
+					{
+						selected = candidate;
+						SD_PlaySound("menu/move1");
+						break;
+					}
+				}
+			}
+		}
+
+		if(Keyboard[sc_Return] || Keyboard[sc_Space] || ci.button0)
+		{
+			SD_PlaySound("menu/activate");
+			IN_ClearKeysDown();
+			WaitKeyUp();
+			DrawPlayScreen();
+			return selected + 1;
+		}
+
+		if(Keyboard[sc_Escape] || ci.button1)
+		{
+			SD_PlaySound("menu/escape");
+			IN_ClearKeysDown();
+			WaitKeyUp();
+			DrawPlayScreen();
+			return 0;
+		}
+
+		lastDirection = ci.dir;
+		SDL_Delay(5);
+	}
+}
+
 bool Confirm (const char *string)
 {
 	bool xit = false;

@@ -79,6 +79,7 @@ int StartCPMusic(const char* song);
 bool Confirm(const char *string);
 void Message(const char *string);
 int NitemareClimbChoice(bool canUp, bool canDown);
+int NitemareFloorChoice(int currentFloor, const bool *enabled, int floorCount);
 void CheckPause(void);
 void ShootSnd(void);
 void CheckSecretMissions(void);
