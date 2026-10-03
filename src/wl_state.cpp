@@ -1116,16 +1116,17 @@ static bool NitemareGuardTryMove(
 
 	if(commit)
 	{
+		const unsigned int oldTileX = self->tilex;
+		const unsigned int oldTileY = self->tiley;
+
 		self->x += appliedX;
 		self->y += appliedY;
 
-		const unsigned int newTileX = self->x >> TILESHIFT;
-		const unsigned int newTileY = self->y >> TILESHIFT;
-		if(newTileX != self->tilex || newTileY != self->tiley)
+		// tilex/tiley are read-only views into x/y on modern ECWolf builds.
+		// Writing x/y updates them automatically.
+		if(self->tilex != oldTileX || self->tiley != oldTileY)
 		{
-			self->tilex = newTileX;
-			self->tiley = newTileY;
-			MapSpot newSpot = map->GetSpot(newTileX, newTileY, 0);
+			MapSpot newSpot = map->GetSpot(self->tilex, self->tiley, 0);
 			if(newSpot != NULL)
 				self->EnterZone(newSpot->zone);
 		}
