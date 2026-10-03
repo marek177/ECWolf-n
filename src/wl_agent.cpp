@@ -1292,6 +1292,58 @@ static bool NitemareActorIsRendererVisible(AActor *actor)
 	return false;
 }
 
+static bool NitemareSilverPathClear(AActor *source, AActor *target)
+{
+	if(source == NULL || target == NULL)
+		return false;
+
+	if(!CheckLine(target, source))
+		return false;
+
+	int x = source->tilex;
+	int y = source->tiley;
+	const int targetX = target->tilex;
+	const int targetY = target->tiley;
+	const int dx = abs(targetX - x);
+	const int dy = abs(targetY - y);
+	const int sx = x < targetX ? 1 : -1;
+	const int sy = y < targetY ? 1 : -1;
+	int err = dx - dy;
+	int steps = 0;
+
+	while(x != targetX || y != targetY)
+	{
+		const int twiceError = err * 2;
+		if(twiceError > -dy)
+		{
+			err -= dy;
+			x += sx;
+		}
+		if(twiceError < dx)
+		{
+			err += dx;
+			y += sy;
+		}
+
+		if(++steps > 16)
+			return false;
+		if(x == targetX && y == targetY)
+			break;
+
+		for(AActor::Iterator blocker = AActor::GetIterator(); blocker.Next();)
+		{
+			if(blocker != source && blocker != target &&
+				(blocker->flags & FL_SOLID) &&
+				blocker->tilex == x && blocker->tiley == y)
+			{
+				return false;
+			}
+		}
+	}
+
+	return true;
+}
+
 static FRandom pr_nitemarepistol("NitemareSilverPistol");
 
 ACTION_FUNCTION(A_NitemareSilverHitscan)
@@ -1317,11 +1369,6 @@ ACTION_FUNCTION(A_NitemareSilverHitscan)
 			continue;
 		}
 
-		const int dxTiles = abs(static_cast<int>(check->tilex) - static_cast<int>(self->tilex));
-		const int dyTiles = abs(static_cast<int>(check->tiley) - static_cast<int>(self->tiley));
-		if(MAX(dxTiles, dyTiles) > 16)
-			continue;
-
 		if(!NitemareActorIsRendererVisible(check))
 			continue;
 
@@ -1329,7 +1376,7 @@ ACTION_FUNCTION(A_NitemareSilverHitscan)
 		if(check->viewheight == 0 || !R_ActorCrossesAimCenter(check, 4))
 			continue;
 
-		if(!CheckLine(check, self))
+		if(!NitemareSilverPathClear(self, check))
 			continue;
 
 		DamageActor(check, self, 1 + (pr_nitemarepistol() % maxdamage));
