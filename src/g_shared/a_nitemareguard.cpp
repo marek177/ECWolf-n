@@ -3,17 +3,6 @@
 
 IMPLEMENT_CLASS(NitemareGuard)
 
-ANitemareGuard::ANitemareGuard()
-	: n3dObjectClass(0)
-	, n3dStrategy(0)
-	, n3dCurrentState(7)
-	, n3dNextState(2)
-	, n3dDirectionCache(0)
-	, n3dTimer(0)
-	, n3dElevation(0)
-{
-}
-
 void ANitemareGuard::Serialize(FArchive &arc)
 {
 	Super::Serialize(arc);
