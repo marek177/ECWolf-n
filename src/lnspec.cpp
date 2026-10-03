@@ -1066,8 +1066,11 @@ static unsigned int NitemareCurrentIdCardPresenceMask()
 	long length = reader->GetLength();
 	if(length > static_cast<long>(sizeof(text) - 1))
 		length = sizeof(text) - 1;
-	if(length > 0)
-		reader->Read(text, length);
+	if(length > 0 && reader->Read(text, length) != length)
+	{
+		delete reader;
+		return 0;
+	}
 	delete reader;
 
 	return static_cast<unsigned int>(strtoul(text, NULL, 10)) & 0x03;
@@ -1161,7 +1164,8 @@ FUNC(Nitemare_ElevatorWarp)
 	const unsigned int playerCardMask = NitemarePlayerIdCardMask(activator);
 	const unsigned int unavailableMask = staticCardMask ^ playerCardMask;
 
-	const unsigned int definedCount = MIN<unsigned int>(maxId - minId + 1, 10);
+	const unsigned int rawDefinedCount = maxId - minId + 1;
+	const unsigned int definedCount = rawDefinedCount < 10 ? rawDefinedCount : 10;
 	for(unsigned int floor = 0; floor < definedCount; ++floor)
 	{
 		const unsigned int targetRaw = minId + floor;
