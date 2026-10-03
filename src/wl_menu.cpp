@@ -1056,7 +1056,7 @@ int NitemareClimbChoice(bool canUp, bool canDown)
 	choices[count++] = 0;
 
 	int selected = 0;
-	dirtype lastDirection = dir_None;
+	Direction lastDirection = dir_None;
 
 	IN_ClearKeysDown();
 	WaitKeyUp();
@@ -1142,7 +1142,7 @@ int NitemareFloorChoice(int currentFloor, const bool *enabled, int floorCount)
 		}
 	}
 
-	dirtype lastDirection = dir_None;
+	Direction lastDirection = dir_None;
 	IN_ClearKeysDown();
 	WaitKeyUp();
 
@@ -1236,7 +1236,7 @@ int NitemareRemoteChoice(bool doorsOpen, bool cannonsEnabled)
 	if(selected >= 5)
 		selected = 4;
 
-	dirtype lastDirection = dir_None;
+	Direction lastDirection = dir_None;
 	IN_ClearKeysDown();
 	WaitKeyUp();
 
