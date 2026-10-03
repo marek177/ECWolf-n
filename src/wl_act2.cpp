@@ -184,6 +184,120 @@ bool ProjectileTryMove (AActor *ob)
 =================
 */
 
+static bool NitemareIsPlayerProjectile(AActor *actor)
+{
+	static const ClassDef *projectileBase = NULL;
+	if(projectileBase == NULL)
+		projectileBase = ClassDef::FindClass("NitemarePlayerProjectile");
+
+	if(actor == NULL || projectileBase == NULL)
+		return false;
+
+	const ClassDef *actual = actor->GetClass();
+	return actual == projectileBase || actual->IsDescendantOf(projectileBase);
+}
+
+static int NitemareProjectileGuardClassCode(AActor *actor)
+{
+	if(actor == NULL)
+		return -1;
+
+	static const ClassDef *guardClasses[0x22] = {NULL};
+	static bool initialized = false;
+	if(!initialized)
+	{
+		for(unsigned int objectClass = 0x08; objectClass <= 0x21; ++objectClass)
+		{
+			FString name;
+			name.Format("NitemareGuardClass%02X", objectClass);
+			guardClasses[objectClass] = ClassDef::FindClass(name.GetChars());
+		}
+		initialized = true;
+	}
+
+	const ClassDef *actual = actor->GetClass();
+	for(unsigned int objectClass = 0x08; objectClass <= 0x21; ++objectClass)
+	{
+		const ClassDef *base = guardClasses[objectClass];
+		if(base != NULL && (actual == base || actual->IsDescendantOf(base)))
+			return static_cast<int>(objectClass);
+	}
+	return -1;
+}
+
+static int NitemareProjectileWeaponSelector(AActor *projectile)
+{
+	static const ClassDef *wandClass = NULL;
+	if(wandClass == NULL)
+		wandClass = ClassDef::FindClass("NitemareWandShot");
+
+	if(projectile != NULL && wandClass != NULL)
+	{
+		const ClassDef *actual = projectile->GetClass();
+		if(actual == wandClass || actual->IsDescendantOf(wandClass))
+			return 1;
+	}
+	return 0;
+}
+
+static int NitemareProjectileDamageTransform(int rawDamage, int objectClass, int weaponSelector)
+{
+	if(rawDamage <= 0)
+		return 0;
+
+	const bool wand = weaponSelector == 1;
+	switch(objectClass)
+	{
+		case 0x0C: return rawDamage / 8;
+		case 0x0D: return wand ? rawDamage / 2 : rawDamage / 8;
+		case 0x0E: return wand ? rawDamage / 2 : rawDamage / 8;
+		case 0x0F:
+		case 0x10: return wand ? rawDamage / 2 : rawDamage / 256;
+		case 0x11:
+		case 0x14: return wand ? rawDamage / 2 : rawDamage / 8;
+		case 0x12:
+		case 0x13: return rawDamage / 4;
+		case 0x15:
+		case 0x19: return 0;
+		case 0x16: return 0;
+		case 0x17: return wand ? rawDamage / 256 : rawDamage / 4;
+		case 0x18: return wand ? rawDamage / 256 : rawDamage / 8;
+		case 0x1A: return wand ? rawDamage / 2 : 0;
+		case 0x1B:
+		case 0x1C: return rawDamage / 2;
+		case 0x1D: return rawDamage / 8;
+		case 0x1E: return wand ? 0 : rawDamage / 8;
+		case 0x1F: return wand ? 0 : rawDamage / 4;
+		default: return rawDamage;
+	}
+}
+
+static void NitemareApplyProjectileGuardDamage(AActor *target, AActor *attacker, int damage)
+{
+	if(target == NULL || damage <= 0)
+		return;
+
+	damage = FixedMul(damage, gamestate.difficulty->PlayerDamageFactor);
+	if(damage <= 0)
+		return;
+
+	target->health -= damage;
+	if(attacker != NULL && attacker->player)
+		target->target = attacker;
+
+	if(target->health <= 0)
+	{
+		if(attacker != NULL)
+		{
+			target->killerx = attacker->x;
+			target->killery = attacker->y;
+		}
+		target->Die();
+	}
+}
+
+static FRandom pr_nitemareprojectile("NitemareProjectileDamage");
+
 static FRandom pr_explodemissile("ExplodeMissile");
 void T_ExplodeProjectile(AActor *self, AActor *target)
 {
