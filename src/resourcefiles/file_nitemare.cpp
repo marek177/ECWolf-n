@@ -123,6 +123,15 @@ static int BootstrapRemoteDoorAxis(const char *begin, const char *end)
 	return 0;
 }
 
+static int BootstrapTransportDoorAxis(const char *begin, const char *end)
+{
+	if(DefinitionTokenEquals(begin, end, "DOORVI"))
+		return 1;
+	if(DefinitionTokenEquals(begin, end, "DOORHI"))
+		return 2;
+	return 0;
+}
+
 static bool DefinitionRangeContainsNoCase(const char *begin, const char *end, const char *needle)
 {
 	const size_t needleLength = strlen(needle);
@@ -169,6 +178,13 @@ static int BootstrapColorLock(const char *begin, const char *end)
 	if(DefinitionRangeContainsNoCase(begin, end, "green")) return 202;
 	if(DefinitionRangeContainsNoCase(begin, end, "blue")) return 203;
 	if(DefinitionRangeContainsNoCase(begin, end, "yellow")) return 204;
+	return 0;
+}
+
+static int BootstrapTransportLock(const char *begin, const char *end)
+{
+	if(DefinitionRangeContainsNoCase(begin, end, "door 1")) return 205;
+	if(DefinitionRangeContainsNoCase(begin, end, "door 2")) return 206;
 	return 0;
 }
 
@@ -679,11 +695,16 @@ static bool BuildDefinitionXlat(FileReader *reader, int episode, bool walls, FSt
 					const int ordinaryDoorAxis = BootstrapDoorAxis(classBegin, classEnd);
 					const int lockedDoorAxis = BootstrapLockedDoorAxis(classBegin, classEnd);
 					const int remoteDoorAxis = BootstrapRemoteDoorAxis(classBegin, classEnd);
+					const int transportDoorAxis = BootstrapTransportDoorAxis(classBegin, classEnd);
 					const int doorAxis = ordinaryDoorAxis != 0 ? ordinaryDoorAxis :
-						lockedDoorAxis != 0 ? lockedDoorAxis : remoteDoorAxis;
-					const int lock = lockedDoorAxis != 0 ? BootstrapColorLock(descriptionBegin, lineEnd) : 0;
+						lockedDoorAxis != 0 ? lockedDoorAxis :
+						remoteDoorAxis != 0 ? remoteDoorAxis : transportDoorAxis;
+					const int lock = lockedDoorAxis != 0 ? BootstrapColorLock(descriptionBegin, lineEnd) :
+						transportDoorAxis != 0 ? BootstrapTransportLock(descriptionBegin, lineEnd) : 0;
 
-					if(ordinaryDoorAxis != 0 || (lockedDoorAxis != 0 && lock != 0))
+					if(ordinaryDoorAxis != 0 ||
+						(lockedDoorAxis != 0 && lock != 0) ||
+						(transportDoorAxis != 0 && lock != 0))
 					{
 						FString lockArg;
 						if(lock != 0)
