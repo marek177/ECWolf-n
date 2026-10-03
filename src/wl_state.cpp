@@ -930,9 +930,10 @@ void NitemareDamageGuard(AActor *ob, AActor *attacker, unsigned damage)
 ACTION_FUNCTION(A_NitemareInitGuardClass)
 {
 	ACTION_PARAM_INT(objectClass, 0);
+	ACTION_PARAM_INT(variant, 1);
 
 	if(self->IsKindOf(NATIVE_CLASS(NitemareGuard)))
-		static_cast<ANitemareGuard *>(self)->ConfigureRuntimeClass(objectClass);
+		static_cast<ANitemareGuard *>(self)->ConfigureRuntimeClass(objectClass, variant);
 
 	self->temp1 = objectClass;
 	return true;
