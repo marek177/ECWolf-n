@@ -1336,7 +1336,9 @@ private:
 					idCardMask |= 0x02;
 
 				const BYTE wallClass = mapHeader[2 + wallId];
-				if(wallClass >= 0x41 && wallClass <= 0x46 &&
+				// Preserve dynamic-door classes too: strategy-1 FLEE scans
+				// the original bounded door table for a nearest LOS-valid target.
+				if(wallClass >= 0x31 && wallClass <= 0x46 &&
 					wallClassBase[wallClass] >= 0)
 				{
 					const unsigned int x = cell & 63;
