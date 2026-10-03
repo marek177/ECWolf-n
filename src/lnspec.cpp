@@ -1053,7 +1053,7 @@ static unsigned int NitemareCurrentIdCardPresenceMask()
 {
 	FString lumpName;
 	lumpName.Format("%sIC", gamestate.mapname);
-	const int lump = Wads.CheckNumForName(lumpName);
+	const int lump = Wads.CheckNumForName(lumpName.GetChars());
 	if(lump < 0)
 		return 0;
 
