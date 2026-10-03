@@ -945,6 +945,20 @@ ACTION_FUNCTION(A_NitemareGuardPainFinalize)
 	return true;
 }
 
+ACTION_FUNCTION(A_NitemareGuardDeathStep)
+{
+	if(!self->IsKindOf(NATIVE_CLASS(NitemareGuard)))
+		return true;
+
+	ANitemareGuard *guard = static_cast<ANitemareGuard *>(self);
+	if(guard->AdvanceDeathSettling() && result != NULL)
+	{
+		// Generated DeathSettling and DeathDone frames are adjacent.
+		result->JumpFrame = caller + 1;
+	}
+	return true;
+}
+
 ACTION_FUNCTION(A_NitemareGuardDeathFinalize)
 {
 	const int objectClass = NitemareGuardClassCode(self);
