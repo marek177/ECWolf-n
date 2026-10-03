@@ -101,11 +101,23 @@ void ANitemareGuard::BeginLethalTransition()
 {
 	n3dCurrentState = n3dElevation > 0 ? 0x12 : 0x00;
 	n3dNextState = 0x09;
-	n3dTimer = 0;
+	// Keep a one-step timed-animation wrapper for ordinary state 0x00.
+	n3dTimer = n3dCurrentState == 0x00 ? 1 : 0;
 }
 
 bool ANitemareGuard::AdvanceDeathSettling()
 {
+	if(n3dCurrentState == 0x00)
+	{
+		if(n3dTimer > 0)
+		{
+			--n3dTimer;
+			return false;
+		}
+		n3dCurrentState = n3dNextState; // 0x09
+		return true;
+	}
+
 	if(n3dCurrentState != 0x12)
 		return true;
 
