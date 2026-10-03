@@ -8,8 +8,6 @@ class ANitemareGuard : public AActor
 	DECLARE_NATIVE_CLASS(NitemareGuard, Actor)
 
 public:
-	ANitemareGuard();
-
 	void Serialize(FArchive &arc);
 
 	void ConfigureRuntimeClass(int objectClass);
