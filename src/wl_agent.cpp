@@ -1353,3 +1353,48 @@ ACTION_FUNCTION(A_FireCustomMissile)
 	newobj->vely = -FixedMul(newobj->speed,finesine[iangle>>ANGLETOFINESHIFT]);
 	return true;
 }
+
+ACTION_FUNCTION(A_NitemareFireMissile)
+{
+	ACTION_PARAM_STRING(missiletype, 0);
+
+	if(!self->player || self->player->ReadyWeapon == NULL)
+		return false;
+
+	const ClassDef *projectileBase = ClassDef::FindClass("NitemarePlayerProjectile");
+	const ClassDef *missileClass = ClassDef::FindClass(missiletype);
+	if(projectileBase == NULL || missileClass == NULL ||
+		!missileClass->IsDescendantOf(projectileBase))
+	{
+		return false;
+	}
+
+	unsigned int activeProjectiles = 0;
+	for(AActor::Iterator check = AActor::GetIterator(); check.Next();)
+	{
+		if(check->IsA(projectileBase))
+			++activeProjectiles;
+	}
+
+	// The original allocator has exactly eight shared 0x2A-byte slots.
+	// A full pool rejects the attempt before the ammo helper is called.
+	if(activeProjectiles >= 8)
+		return false;
+
+	if(!self->player->ReadyWeapon->DepleteAmmo())
+		return false;
+
+	if(!(self->player->ReadyWeapon->weaponFlags & WF_NOALERT))
+		madenoise = true;
+
+	if(self->MeleeState)
+		self->SetState(self->MeleeState);
+
+	AActor *newobj = AActor::Spawn(missileClass, self->x, self->y, 0, SPAWN_AllowReplacement);
+	newobj->target = self;
+	newobj->angle = self->angle;
+	newobj->velx = FixedMul(newobj->speed, finecosine[self->angle>>ANGLETOFINESHIFT]);
+	newobj->vely = -FixedMul(newobj->speed, finesine[self->angle>>ANGLETOFINESHIFT]);
+	return true;
+}
+
