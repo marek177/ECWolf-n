@@ -912,14 +912,39 @@ private:
 			marker.Format("N%dM%02u", episode, i + 1);
 			AddMarker(marker);
 
+			const int levelPosition = HeaderSize + i * LevelBytes;
 			FNitemareMapLump *planes = new FNitemareMapLump;
 			planes->Owner = this;
-			planes->Position = HeaderSize + i * LevelBytes;
+			planes->Position = levelPosition;
 			planes->Episode = episode;
 			planes->Level = i + 1;
 			planes->LumpSize = ConvertedLevelBytes;
 			planes->LumpNameSetup("PLANES");
 			Lumps.Push(planes);
+
+			// Preserve the level-initial static ID-card presence mask used by
+			// the original elevator floor menu. IDs 09/0A are the stable
+			// red/yellow IDCARD object IDs in OBJECTS.1-3.
+			BYTE raw[LevelBytes];
+			Reader->Seek(levelPosition, SEEK_SET);
+			if(Reader->Read(raw, LevelBytes) != LevelBytes)
+				return false;
+
+			unsigned int idCardMask = 0;
+			for(unsigned int cell = 0; cell < 64 * 64; ++cell)
+			{
+				const BYTE objectId = raw[cell * 2 + 1];
+				if(objectId == 0x09)
+					idCardMask |= 0x01;
+				else if(objectId == 0x0A)
+					idCardMask |= 0x02;
+			}
+
+			FString cardMetaName;
+			cardMetaName.Format("N%dM%02uIC", episode, i + 1);
+			FString cardMeta;
+			cardMeta.Format("%u", idCardMask);
+			AddMemory(cardMetaName, cardMeta);
 		}
 
 		FString headerName;
