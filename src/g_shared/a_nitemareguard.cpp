@@ -16,6 +16,7 @@ void ANitemareGuard::Serialize(FArchive &arc)
 		<< n3dTransitionControl
 		<< n3dPerceptionSucceeded
 		<< n3dWithinOneTile
+		<< n3dSpawnMarkerApplied
 		<< n3dMoveX
 		<< n3dMoveY
 		<< n3dVerticalBobStep
@@ -35,6 +36,7 @@ void ANitemareGuard::ConfigureRuntimeClass(int objectClass, int variant)
 	n3dTransitionControl = 1;
 	n3dPerceptionSucceeded = 0;
 	n3dWithinOneTile = 0;
+	n3dSpawnMarkerApplied = 0;
 	n3dMoveX = 0;
 	n3dMoveY = 0;
 	n3dVerticalBobStep = 0;
