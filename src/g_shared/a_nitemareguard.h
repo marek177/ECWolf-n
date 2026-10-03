@@ -9,6 +9,7 @@ class ANitemareGuard : public AActor
 
 public:
 	void Serialize(FArchive &arc);
+	void Tick();
 
 	void ConfigureRuntimeClass(int objectClass, int variant);
 	bool BeginPainReaction();
