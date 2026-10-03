@@ -114,6 +114,15 @@ static int BootstrapLockedDoorAxis(const char *begin, const char *end)
 	return 0;
 }
 
+static int BootstrapRemoteDoorAxis(const char *begin, const char *end)
+{
+	if(DefinitionTokenEquals(begin, end, "DOORVR"))
+		return 1;
+	if(DefinitionTokenEquals(begin, end, "DOORHR"))
+		return 2;
+	return 0;
+}
+
 static bool DefinitionRangeContainsNoCase(const char *begin, const char *end, const char *needle)
 {
 	const size_t needleLength = strlen(needle);
@@ -126,6 +135,29 @@ static bool DefinitionRangeContainsNoCase(const char *begin, const char *end, co
 			return true;
 	}
 	return false;
+}
+
+static int DefinitionDescriptionGroup(const char *begin, const char *end)
+{
+	for(const char *p = begin; p < end; ++p)
+	{
+		if(*p != '#')
+			continue;
+
+		++p;
+		int group = 0;
+		bool haveDigit = false;
+		while(p < end && *p >= '0' && *p <= '9')
+		{
+			haveDigit = true;
+			group = group * 10 + (*p - '0');
+			++p;
+		}
+		if(haveDigit)
+			return group;
+		break;
+	}
+	return 0;
 }
 
 static int BootstrapColorLock(const char *begin, const char *end)
@@ -316,6 +348,62 @@ static int DefinitionMinIdForClassName(const char *data, long length, const char
 
 	return minimum;
 }
+static int DefinitionIdForClassGroup(const char *data, long length,
+	const char *className, int wantedGroup)
+{
+	const char *p = data;
+	const char *end = data + length;
+	while(p < end)
+	{
+		const char *line = p;
+		while(p < end && *p != '\n')
+			++p;
+		const char *lineEnd = p;
+		if(p < end)
+			++p;
+
+		if(lineEnd > line && lineEnd[-1] == '\r')
+			--lineEnd;
+		while(line < lineEnd && IsDefinitionSpace(*line))
+			++line;
+		while(lineEnd > line && IsDefinitionSpace(lineEnd[-1]))
+			--lineEnd;
+		if(line == lineEnd)
+			continue;
+
+		const char *tokens[8];
+		const char *scan = line;
+		bool complete = true;
+		for(int field = 0; field < 4; ++field)
+		{
+			while(scan < lineEnd && IsDefinitionSpace(*scan))
+				++scan;
+			if(scan == lineEnd)
+			{
+				complete = false;
+				break;
+			}
+			tokens[field * 2] = scan;
+			while(scan < lineEnd && !IsDefinitionSpace(*scan))
+				++scan;
+			tokens[field * 2 + 1] = scan;
+		}
+		if(!complete || !DefinitionTokenEquals(tokens[6], tokens[7], className))
+			continue;
+
+		const char *description = scan;
+		while(description < lineEnd && IsDefinitionSpace(*description))
+			++description;
+		if(DefinitionDescriptionGroup(description, lineEnd) != wantedGroup)
+			continue;
+
+		unsigned int id;
+		if(ParseDefinitionId(tokens[0], tokens[1], id))
+			return static_cast<int>(id);
+	}
+	return -1;
+}
+
 
 static int RecoveredObjectClassCode(const char *begin, const char *end)
 {
@@ -456,6 +544,33 @@ static bool BuildDefinitionXlat(FileReader *reader, int episode, bool walls, FSt
 					FString texture;
 					texture.Format("N%dW%02X", episode, id);
 
+					if(DefinitionTokenEquals(classBegin, classEnd, "CONTROL"))
+					{
+						const int controlGroup = DefinitionDescriptionGroup(descriptionBegin, lineEnd);
+						if(controlGroup >= 1 && controlGroup <= 2)
+						{
+							const int verticalRaw = DefinitionIdForClassGroup(data, length, "DOORVR", controlGroup);
+							const int horizontalRaw = DefinitionIdForClassGroup(data, length, "DOORHR", controlGroup);
+							if(verticalRaw >= 0 || horizontalRaw >= 0)
+							{
+								FString controlTrigger;
+								controlTrigger.Format(
+									"\ttrigger %u\n\t{\n"
+									"\t\taction = \"Nitemare_RemoteControl\";\n"
+									"\t\targ0 = %u;\n"
+									"\t\targ1 = %d;\n"
+									"\t\targ2 = %d;\n"
+									"\t\targ3 = %d;\n"
+									"\t\targ4 = %d;\n"
+									"\t\tplayeruse = true;\n"
+									"\t}\n",
+									id, id, controlGroup - 1,
+									verticalRaw, horizontalRaw, 204 + controlGroup);
+								xlat += controlTrigger;
+							}
+						}
+					}
+
 					if(DefinitionTokenEquals(classBegin, classEnd, "WARP_S1") ||
 						DefinitionTokenEquals(classBegin, classEnd, "WARP_S2"))
 					{
@@ -563,7 +678,9 @@ static bool BuildDefinitionXlat(FileReader *reader, int episode, bool walls, FSt
 
 					const int ordinaryDoorAxis = BootstrapDoorAxis(classBegin, classEnd);
 					const int lockedDoorAxis = BootstrapLockedDoorAxis(classBegin, classEnd);
-					const int doorAxis = ordinaryDoorAxis != 0 ? ordinaryDoorAxis : lockedDoorAxis;
+					const int remoteDoorAxis = BootstrapRemoteDoorAxis(classBegin, classEnd);
+					const int doorAxis = ordinaryDoorAxis != 0 ? ordinaryDoorAxis :
+						lockedDoorAxis != 0 ? lockedDoorAxis : remoteDoorAxis;
 					const int lock = lockedDoorAxis != 0 ? BootstrapColorLock(descriptionBegin, lineEnd) : 0;
 
 					if(ordinaryDoorAxis != 0 || (lockedDoorAxis != 0 && lock != 0))

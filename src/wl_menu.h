@@ -81,6 +81,7 @@ void Message(const char *string);
 int NitemareClimbChoice(bool canUp, bool canDown);
 int NitemareFloorChoice(int currentFloor, const bool *enabled, int floorCount);
 void NitemareNotice(const char *text);
+int NitemareRemoteChoice(bool doorsOpen, bool cannonsEnabled);
 void CheckPause(void);
 void ShootSnd(void);
 void CheckSecretMissions(void);

@@ -1,0 +1,32 @@
+actor NitemareRemoteDoorState1 : Inventory
+{
+	inventory.maxamount 1
+	states
+	{
+		Spawn:
+			TNT1 A -1
+			stop
+	}
+}
+
+actor NitemareRemoteDoorState2 : Inventory
+{
+	inventory.maxamount 1
+	states
+	{
+		Spawn:
+			TNT1 A -1
+			stop
+	}
+}
+
+actor NitemareRemoteCannonsDisabled : Inventory
+{
+	inventory.maxamount 1
+	states
+	{
+		Spawn:
+			TNT1 A -1
+			stop
+	}
+}
