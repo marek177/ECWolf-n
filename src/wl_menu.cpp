@@ -1213,6 +1213,28 @@ int NitemareFloorChoice(int currentFloor, const bool *enabled, int floorCount)
 	}
 }
 
+void NitemareNotice(const char *text)
+{
+	Message(text);
+	IN_ClearKeysDown();
+	WaitKeyUp();
+
+	for(;;)
+	{
+		ControlInfo ci;
+		ReadAnyControl(&ci);
+		if(Keyboard[sc_Return] || Keyboard[sc_Space] || Keyboard[sc_Escape] ||
+			ci.button0 || ci.button1)
+			break;
+		SDL_Delay(5);
+	}
+
+	SD_PlaySound("menu/activate");
+	IN_ClearKeysDown();
+	WaitKeyUp();
+	DrawPlayScreen();
+}
+
 bool Confirm (const char *string)
 {
 	bool xit = false;
