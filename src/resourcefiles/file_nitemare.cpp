@@ -781,6 +781,7 @@ static bool BuildDefinitionXlat(FileReader *reader, int episode, bool walls, FSt
 						const bool keyInventory = objectClass == 0x2F || objectClass == 0x30;
 						const bool pentagramInventory = objectClass == 0x3C;
 						const bool healthPickup = objectClass == 0x33;
+						const bool weaponPickup = objectClass == 0x36 && id >= 0x25 && id <= 0x28;
 						const bool ammoPickup = objectClass == 0x39;
 						const bool mapPowerPickup = objectClass == 0x3A || objectClass == 0x3B;
 
@@ -808,6 +809,10 @@ static bool BuildDefinitionXlat(FileReader *reader, int episode, bool walls, FSt
 								"\tinventory.maxamount 100\n",
 								amount);
 						}
+						else if(weaponPickup)
+						{
+							parent.Format(" : NitemareWeaponPickup%u", id - 0x25);
+						}
 						else if(ammoPickup)
 						{
 							if(id == 0x29)
@@ -824,7 +829,8 @@ static bool BuildDefinitionXlat(FileReader *reader, int episode, bool walls, FSt
 						}
 
 						const bool inventory = keyInventory || pentagramInventory ||
-							healthPickup || (ammoPickup && !parent.IsEmpty()) || mapPowerPickup;
+							healthPickup || weaponPickup ||
+							(ammoPickup && !parent.IsEmpty()) || mapPowerPickup;
 						if(!inventory)
 							properties += "\tradius 32\n";
 
