@@ -913,6 +913,161 @@ void NitemareDamageGuard(AActor *ob, AActor *attacker, unsigned damage)
 		ob->SetState(ob->PainState);
 }
 
+static FRandom pr_nitemareguardattack("NitemareGuardAttack");
+
+static int NitemareRoundedDistanceMetric(int dx, int dy)
+{
+	const int squared = dx * dx + dy * dy;
+	if(squared <= 1)
+		return squared < 0 ? 0 : squared;
+
+	int root = 0;
+	while((root + 1) * (root + 1) <= squared)
+		++root;
+
+	const int remainder = squared - root * root;
+	if(remainder >= root - 1)
+		++root;
+	return root;
+}
+
+int NitemareComputeGuardAttackDamage(AActor *guard, AActor *player)
+{
+	if(guard == NULL || player == NULL || player->player == NULL)
+		return 0;
+
+	// Original A1EA converts each 64-unit world coordinate to a map tile
+	// before its rounded integer sqrt, so ECWolf tile coordinates are the
+	// direct equivalent inputs here.
+	const int dx = static_cast<int>(guard->tilex) - static_cast<int>(player->tilex);
+	const int dy = static_cast<int>(guard->tiley) - static_cast<int>(player->tiley);
+	const int distanceMetric = NitemareRoundedDistanceMetric(dx, dy);
+	const int seed = distanceMetric > 0 ? 100 / distanceMetric : 100;
+
+	const int objectClass = NitemareGuardClassCode(guard);
+	const unsigned int randomValue = pr_nitemareguardattack();
+	int damage;
+
+	switch(objectClass)
+	{
+		case 0x08:
+			damage = randomValue & 0x07;
+			break;
+
+		case 0x09:
+		case 0x0A:
+			damage = randomValue & 0x0F;
+			break;
+
+		case 0x0B:
+			damage = seed / 4;
+			break;
+
+		case 0x0C:
+		case 0x1D:
+		case 0x1E:
+			damage = seed;
+			break;
+
+		case 0x11:
+		case 0x12:
+		case 0x13:
+		case 0x14:
+			damage = randomValue & 0x1F;
+			break;
+
+		case 0x16:
+			// Default non-scripted path: Episode 3 selects full damage.
+			// The separate 0x51A6 override will be added with scripted state.
+			damage = gamestate.mapname[0] == 'N' &&
+				gamestate.mapname[1] == '3' &&
+				gamestate.mapname[2] == 'M' ? 100 : 33;
+			break;
+
+		case 0x19:
+			damage = 100;
+			break;
+
+		default:
+			damage = seed / 2;
+			break;
+	}
+
+	return damage;
+}
+
+static int NitemareGuardPerceptionMode(int objectClass)
+{
+	switch(objectClass)
+	{
+		case 0x08:
+		case 0x09:
+		case 0x0A:
+		case 0x11:
+		case 0x12:
+		case 0x13:
+		case 0x14:
+		case 0x1A:
+			return 0;
+		default:
+			return 1;
+	}
+}
+
+static bool NitemareGuardAttackEligible(AActor *guard, AActor *player)
+{
+	if(guard == NULL || player == NULL || player->player == NULL)
+		return false;
+
+	const int objectClass = NitemareGuardClassCode(guard);
+	const int dxTile =
+		static_cast<int>(player->tilex) - static_cast<int>(guard->tilex);
+	const int dyTile =
+		static_cast<int>(player->tiley) - static_cast<int>(guard->tiley);
+
+	const bool withinOneTile =
+		abs(player->x - guard->x) <= FRACUNIT &&
+		abs(player->y - guard->y) <= FRACUNIT;
+
+	bool perception = false;
+	if(abs(dxTile) <= 8 && abs(dyTile) <= 8)
+	{
+		// State 03/04 calls FUN_7494 with ignoreFacing=1. The remaining
+		// prefilter is therefore the fixed eight-tile axis range plus D50A LOS.
+		// CheckLine reproduces the wall/door portion here; the secondary
+		// object-plane property-bit filter is completed with the movement/LOS
+		// integration layer.
+		perception = CheckLine(player, guard);
+	}
+
+	return NitemareGuardPerceptionMode(objectClass) == 0 ?
+		withinOneTile : perception;
+}
+
+ACTION_FUNCTION(A_NitemareGuardAttack)
+{
+	AActor *player = players[0].mo;
+	if(player == NULL || player->player == NULL || player->player->health <= 0)
+		return false;
+
+	if(!NitemareGuardAttackEligible(self, player))
+		return false;
+
+	self->target = player;
+	const int damage = NitemareComputeGuardAttackDamage(self, player);
+	if(damage > 0)
+		player->player->TakeDamage(damage, self);
+
+	if(player->player->health <= 0)
+	{
+		const Frame *postKill = self->FindState(FName("PostKill"));
+		if(postKill != NULL)
+			self->SetState(postKill);
+	}
+
+	return damage > 0;
+}
+
 ACTION_FUNCTION(A_NitemareInitGuardClass)
 {
 	ACTION_PARAM_INT(objectClass, 0);

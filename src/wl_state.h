@@ -24,6 +24,7 @@ void    DamageActor (AActor *ob, AActor *attacker, unsigned damage);
 int     NitemareGuardClassCode(AActor *ob);
 int     NitemareTransformGuardDamage(int rawDamage, int objectClass, int weaponSelector);
 void    NitemareDamageGuard(AActor *ob, AActor *attacker, unsigned damage);
+int     NitemareComputeGuardAttackDamage(AActor *guard, AActor *player);
 
 bool CheckSlidePass(unsigned int style, unsigned int intercept, unsigned int amount);
 bool CheckLine (const AActor *ob, const AActor *ob2);

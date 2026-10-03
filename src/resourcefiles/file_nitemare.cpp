@@ -861,6 +861,12 @@ static bool BuildDefinitionXlat(FileReader *reader, int episode, bool walls, FSt
 								"\t\tPain:\n"
 								"\t\t\t%s A 1\n"
 								"\t\t\tgoto Spawn\n"
+								"\t\tMissile:\n"
+								"\t\t\t%s A 1 A_NitemareGuardAttack\n"
+								"\t\t\tgoto Spawn\n"
+								"\t\tPostKill:\n"
+								"\t\t\t%s A -1\n"
+								"\t\t\tstop\n"
 								"\t\tDeath:\n"
 								"\t\t\t%s A 1 A_NitemareGuardDeathFinalize\n"
 								"\t\t\t%s A -1\n"
@@ -869,6 +875,7 @@ static bool BuildDefinitionXlat(FileReader *reader, int episode, bool walls, FSt
 								"}\n\n",
 								actorName.GetChars(), parent.GetChars(),
 								properties.GetChars(), objectClass,
+								sprite.GetChars(), sprite.GetChars(),
 								sprite.GetChars(), sprite.GetChars(),
 								sprite.GetChars(),
 								hideTerminalGuard ? "TNT1" : sprite.GetChars());

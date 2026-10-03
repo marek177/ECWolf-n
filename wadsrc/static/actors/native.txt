@@ -81,6 +81,7 @@ actor Actor native
 	action native A_MonsterRefire(int chance, state abort);
 	action native A_NitemareInitGuardClass(int objectclass);
 	action native A_NitemareGuardDeathFinalize();
+	action native A_NitemareGuardAttack();
 	action native A_Pain();
 	action native A_PlaySound(string soundname);
 	action native A_ScaleVelocity(float scale);

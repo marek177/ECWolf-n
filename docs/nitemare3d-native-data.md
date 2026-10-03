@@ -136,6 +136,50 @@ trailer. The loader exposes:
 This prepares native palette selection without baking a palette into IMG
 conversion.
 
+## GUARD direct attack damage
+
+The recovered enemy attack channel is now represented separately from the
+player projectile system. Nitemare GUARDs do not use the eight-slot player
+projectile pool for their ordinary attacks; state 0x04 calls a direct
+guard-to-player damage route.
+
+`NitemareComputeGuardAttackDamage()` reproduces the confirmed arithmetic:
+
+1. use integer map-cell deltas between guard and player,
+2. compute the original rounded integer square-root metric,
+3. `seed = distance > 0 ? 100 / distance : 100`,
+4. apply the class-specific transform.
+
+The class table is:
+
+- 0x08: RNG & 7,
+- 0x09/0x0A: RNG & 15,
+- 0x0B: seed / 4,
+- 0x0C/0x1D/0x1E: seed,
+- 0x11..0x14: RNG & 31,
+- 0x16: 100 on the normal Episode-3 full-damage gate, otherwise 33,
+- 0x19: 100,
+- remaining handled/default classes: seed / 2.
+
+`A_NitemareGuardAttack` sends that pre-difficulty amount through ECWolf's
+`player_t::TakeDamage()`. Nitemare MAPINFO already maps incoming difficulty
+as Easy x0.5, Normal x1, Hard x2, so difficulty is applied exactly once.
+
+Generated GUARD actors now expose:
+
+- `Missile`: one direct Nitemare attack call followed by normal recovery to
+  Spawn,
+- `PostKill`: frozen terminal state used when that attack kills the player.
+
+The PostKill state represents original GUARD state 0x0B, whose dispatcher has
+no active local behavior. This attack action is intentionally **not** wired to
+Wolf `A_Chase`; the Nitemare state-03 perception/attack gate will decide
+when to enter Missile in the next AI integration layer.
+
+The class-0x16 0x51A6 scripted override and native class-specific attack SFX
+selection are not yet represented; the default Episode-3/full-vs-33 rule is
+implemented.
+
 ## GUARD damage, pain and death receiver
 
 Player weapon damage now converges on one Nitemare-specific GUARD receiver
