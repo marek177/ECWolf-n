@@ -4,6 +4,8 @@
 #include "g_mapinfo.h"
 #include "wl_state.h"
 #include "wl_game.h"
+#include "wl_agent.h"
+#include <math.h>
 
 IMPLEMENT_CLASS(NitemareGuard)
 
@@ -306,6 +308,50 @@ static short NitemareScaleGuardTimer(short timer)
 	return timer;
 }
 
+static int NitemareComputeContactDamage(const ANitemareGuard *guard, const AActor *player)
+{
+	const int dx = abs(static_cast<int>(player->tilex) - static_cast<int>(guard->tilex));
+	const int dy = abs(static_cast<int>(player->tiley) - static_cast<int>(guard->tiley));
+	const int distance = static_cast<int>(sqrt(static_cast<double>(dx * dx + dy * dy)));
+	const int base = distance > 0 ? 100 / distance : 100;
+
+	switch(guard->n3dObjectClass)
+	{
+		case 0x08:
+			return pr_nitemareguard() & 7;
+
+		case 0x09:
+		case 0x0A:
+			return pr_nitemareguard() & 15;
+
+		case 0x0B:
+			return base >> 2;
+
+		case 0x0C:
+		case 0x1D:
+		case 0x1E:
+			return base;
+
+		case 0x11:
+		case 0x12:
+		case 0x13:
+		case 0x14:
+			return pr_nitemareguard() & 31;
+
+		case 0x16:
+			// The original can return 33 under an additional level/event gate
+			// involving 51A6. Until that flag is represented, use the verified
+			// ordinary branch rather than inventing the event condition.
+			return 100;
+
+		case 0x19:
+			return 100;
+
+		default:
+			return base >> 1;
+	}
+}
+
 static void NitemarePlanStrategy0(ANitemareGuard *guard, AActor *player)
 {
 	const fixed halfTile = TILEGLOBAL / 2;
@@ -409,12 +455,29 @@ void ANitemareGuard::Tick()
 		}
 
 		case 0x04:
-			// Attack production is the next layer. Preserve the recovered
-			// state-04 -> sequence wrapper -> state-05 ordering for now.
+		{
+			const bool attackEligible =
+				n3dTransitionControl == 0 ?
+					n3dWithinOneTile != 0 : n3dPerceptionSucceeded != 0;
+			if(attackEligible)
+			{
+				const int damage = NitemareComputeContactDamage(this, player);
+				if(damage > 0)
+					player->player->TakeDamage(damage, this);
+				if(player->health <= 0)
+				{
+					n3dCurrentState = 0x0B;
+					break;
+				}
+			}
+
+			// Sequence bank +0x38 is not wired yet, but retain the original
+			// state-04 recovery wrapper ordering.
 			n3dTimer = 1;
 			n3dNextState = 0x05;
 			n3dCurrentState = 0x00;
 			break;
+		}
 
 		case 0x05:
 			NitemarePlanStrategy0(this, player);
