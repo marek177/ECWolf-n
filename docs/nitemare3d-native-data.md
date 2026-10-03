@@ -146,8 +146,9 @@ The shared path now preserves these recovered rules:
 
 - class/weapon resistance is selected from the original OBJECT class 0x0C..0x1F
   switch in one common helper;
-- Dr. Hamerstein class 0x16 uses fixed base damage 3 only on Episode 3 maps,
-  before difficulty scaling;
+- Dr. Hamerstein class 0x16 uses fixed base damage 3 only when the independent
+  recovered Hamerstein gate (Win16 0x7E52) equals 3; until that gate has a
+  runtime representation in ECWolf, this branch remains damage-immune;
 - player->enemy difficulty scaling is applied once and final positive damage is
   capped at 255;
 - non-lethal damage subtracts HP and enters the generated Pain state, which is
