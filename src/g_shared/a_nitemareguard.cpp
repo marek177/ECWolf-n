@@ -379,7 +379,7 @@ static void NitemarePlanStrategy0(ANitemareGuard *guard, AActor *player)
 
 	if(guard->n3dWithinOneTile != 0)
 		guard->n3dTimer = 8;
-	else if(guard->n3dPerception == 0)
+	else if(guard->n3dPerceptionSucceeded == 0)
 		guard->n3dTimer = 0x18;
 	else
 		guard->n3dTimer = NitemareScaleGuardTimer(
