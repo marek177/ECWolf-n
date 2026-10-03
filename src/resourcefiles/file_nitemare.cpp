@@ -778,6 +778,7 @@ static bool BuildDefinitionXlat(FileReader *reader, int episode, bool walls, FSt
 						FString sprite;
 						sprite.Format("N%d%02X", episode, id);
 
+						const bool guardActor = objectClass >= 0x08 && objectClass <= 0x21;
 						const bool keyInventory = objectClass == 0x2F || objectClass == 0x30;
 						const bool pentagramInventory = objectClass == 0x3C;
 						const bool healthPickup = objectClass == 0x33;
@@ -833,6 +834,12 @@ static bool BuildDefinitionXlat(FileReader *reader, int episode, bool walls, FSt
 							(ammoPickup && !parent.IsEmpty()) || mapPowerPickup;
 						if(!inventory)
 							properties += "\tradius 32\n";
+						if(guardActor)
+						{
+							properties +=
+								"\thealth 255\n"
+								"\t+SHOOTABLE\n";
+						}
 
 						FString actor;
 						actor.Format(
