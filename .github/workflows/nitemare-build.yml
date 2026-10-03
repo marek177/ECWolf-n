@@ -1,0 +1,28 @@
+name: Nitemare ECWolf build
+
+on:
+  push:
+    branches:
+      - 'feature/nitemare3d-*'
+  pull_request:
+    branches:
+      - master
+      - 'feature/nitemare3d-*'
+
+jobs:
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y             cmake ninja-build pkg-config             libsdl2-dev libsdl2-mixer-dev libsdl2-net-dev             zlib1g-dev libbz2-dev libjpeg-dev libpng-dev
+
+      - name: Configure
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DNO_GTK=ON
+
+      - name: Build
+        run: cmake --build build --parallel 2
