@@ -264,6 +264,59 @@ static int DefinitionIdElevatorGroup(const char *data, long length, unsigned int
 }
 
 
+static int DefinitionMinIdForClassName(const char *data, long length, const char *className)
+{
+	const char *p = data;
+	const char *end = data + length;
+	int minimum = -1;
+
+	while(p < end)
+	{
+		const char *line = p;
+		while(p < end && *p != '\n')
+			++p;
+		const char *lineEnd = p;
+		if(p < end)
+			++p;
+
+		if(lineEnd > line && lineEnd[-1] == '\r')
+			--lineEnd;
+		while(line < lineEnd && IsDefinitionSpace(*line))
+			++line;
+		while(lineEnd > line && IsDefinitionSpace(lineEnd[-1]))
+			--lineEnd;
+		if(line == lineEnd)
+			continue;
+
+		const char *tokens[8];
+		const char *scan = line;
+		bool complete = true;
+		for(int field = 0; field < 4; ++field)
+		{
+			while(scan < lineEnd && IsDefinitionSpace(*scan))
+				++scan;
+			if(scan == lineEnd)
+			{
+				complete = false;
+				break;
+			}
+			tokens[field * 2] = scan;
+			while(scan < lineEnd && !IsDefinitionSpace(*scan))
+				++scan;
+			tokens[field * 2 + 1] = scan;
+		}
+		if(!complete || !DefinitionTokenEquals(tokens[6], tokens[7], className))
+			continue;
+
+		unsigned int id;
+		if(ParseDefinitionId(tokens[0], tokens[1], id) &&
+			(minimum < 0 || id < static_cast<unsigned int>(minimum)))
+			minimum = static_cast<int>(id);
+	}
+
+	return minimum;
+}
+
 static int RecoveredObjectClassCode(const char *begin, const char *end)
 {
 	if(end - begin > 5 && strnicmp(begin, "GUARD", 5) == 0)
@@ -402,6 +455,28 @@ static bool BuildDefinitionXlat(FileReader *reader, int episode, bool walls, FSt
 				{
 					FString texture;
 					texture.Format("N%dW%02X", episode, id);
+
+					if(DefinitionTokenEquals(classBegin, classEnd, "WARP_S1") ||
+						DefinitionTokenEquals(classBegin, classEnd, "WARP_S2"))
+					{
+						const bool sourcePortal = DefinitionTokenEquals(classBegin, classEnd, "WARP_S1");
+						const int targetRaw = sourcePortal ?
+							DefinitionMinIdForClassName(data, length, "WARP_S2") : static_cast<int>(id);
+						if(!sourcePortal || targetRaw >= 0)
+						{
+							FString portalTrigger;
+							portalTrigger.Format(
+								"\ttrigger %u\n\t{\n"
+								"\t\taction = \"Nitemare_MirrorPortal\";\n"
+								"\t\targ0 = %u;\n"
+								"\t\targ1 = %d;\n"
+								"\t\targ2 = %d;\n"
+								"\t\tplayeruse = true;\n"
+								"\t}\n",
+								id, id, targetRaw, sourcePortal ? 1 : 2);
+							xlat += portalTrigger;
+						}
+					}
 
 					const int elevatorGroup = BootstrapElevatorGroup(classBegin, classEnd);
 					if(elevatorGroup != 0)
@@ -561,10 +636,13 @@ static bool BuildDefinitionXlat(FileReader *reader, int episode, bool walls, FSt
 						sprite.Format("N%d%02X", episode, id);
 
 						const bool keyInventory = objectClass == 0x2F || objectClass == 0x30;
+						const bool pentagramInventory = objectClass == 0x3C;
+						const bool inventory = keyInventory || pentagramInventory;
 						FString actor;
 						actor.Format(
 							"actor %s%s\n"
 							"{\n"
+							"%s"
 							"%s"
 							"%s"
 							"\tstates\n"
@@ -574,8 +652,10 @@ static bool BuildDefinitionXlat(FileReader *reader, int episode, bool walls, FSt
 							"\t\t\tstop\n"
 							"\t}\n"
 							"}\n\n",
-							actorName.GetChars(), keyInventory ? " : Key" : "",
-							keyInventory ? "\t+INVENTORY.ALWAYSPICKUP\n" : "\tradius 32\n",
+							actorName.GetChars(),
+							keyInventory ? " : Key" : pentagramInventory ? " : Inventory" : "",
+							inventory ? "\t+INVENTORY.ALWAYSPICKUP\n" : "\tradius 32\n",
+							pentagramInventory ? "\tinventory.interhubamount 1\n" : "",
 							(objectClass >= 0x08 && objectClass <= 0x2D) ? "\t+SOLID\n" : "",
 							sprite.GetChars());
 						*decorate += actor;
