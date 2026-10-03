@@ -136,6 +136,33 @@ trailer. The loader exposes:
 This prepares native palette selection without baking a palette into IMG
 conversion.
 
+## Eight-slot player projectile gate
+
+Projectile-mode weapons now pass through native action
+`A_NitemareFireMissile` rather than directly through ECWolf's generic missile
+action.
+
+The action preserves one important original acceptance rule exactly at the
+engine level:
+
+1. resolve the requested Nitemare projectile class,
+2. count active actors derived from `NitemarePlayerProjectile`,
+3. if eight are already active, reject the fire attempt,
+4. only after a free slot exists, consume one unit of weapon ammo,
+5. spawn the projectile.
+
+This models the recovered single shared pool of eight 42-byte player
+projectile records. Plasma and Wand projectiles, including Multi Plasma fire,
+all compete for the same eight logical slots. A projectile remains counted
+while its ECWolf projectile actor still exists, including its short impact
+state, which corresponds more closely to original slot state 2 than releasing
+the slot at first contact.
+
+The current ECWolf projectile actor still uses bootstrap velocity, invisible
+presentation and generic collision/damage. Original Bresenham/DDA fields,
+embedded OBJECT animation state, +/-9 GUARD proximity collision and
+projected-row damage are the next fidelity layer.
+
 ## Bootstrap player weapons
 
 The native-data branch now exposes all four recovered Nitemare player weapons
