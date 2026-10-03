@@ -5,6 +5,7 @@
 #include <math.h>
 #include "actor.h"
 #include "m_random.h"
+#include "r_sprites.h"
 #include "wl_act.h"
 #include "wl_def.h"
 #include "wl_menu.h"
@@ -406,7 +407,9 @@ void T_Projectile (AActor *self)
 						if(nitemareProjectile && nitemareGuardClass >= 0)
 						{
 							const int weaponSelector = NitemareProjectileWeaponSelector(self);
-							const int rawDamage = 1 + (pr_nitemareprojectile() % 64);
+							const int projectionScale = R_NitemareProjectedDamageScale(check);
+							const int rawDamage = projectionScale > 0 ?
+								projectionScale * 8 + (pr_nitemareprojectile() % 25) : 0;
 							const int damage = NitemareProjectileDamageTransform(
 								rawDamage, nitemareGuardClass, weaponSelector);
 							NitemareApplyProjectileGuardDamage(check, self->target, damage);
