@@ -2,6 +2,7 @@ actor NitemareSilverAmmo : Ammo
 {
 	inventory.amount 20
 	inventory.maxamount 100
+	inventory.interhubamount 1
 	states
 	{
 		Spawn:
@@ -14,6 +15,7 @@ actor NitemarePlasmaAmmo : Ammo
 {
 	inventory.amount 20
 	inventory.maxamount 100
+	inventory.interhubamount 1
 	states
 	{
 		Spawn:
@@ -26,6 +28,33 @@ actor NitemareWandAmmo : Ammo
 {
 	inventory.amount 20
 	inventory.maxamount 100
+	inventory.interhubamount 1
+	states
+	{
+		Spawn:
+			TNT1 A -1
+			stop
+	}
+}
+
+actor NitemareCrystalCharge : Ammo
+{
+	inventory.amount 20
+	inventory.maxamount 100
+	inventory.interhubamount 1
+	states
+	{
+		Spawn:
+			TNT1 A -1
+			stop
+	}
+}
+
+actor NitemareMagicEyeCharge : Ammo
+{
+	inventory.amount 20
+	inventory.maxamount 100
+	inventory.interhubamount 1
 	states
 	{
 		Spawn:
