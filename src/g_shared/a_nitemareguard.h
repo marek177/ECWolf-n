@@ -27,6 +27,7 @@ public:
 	BYTE n3dTransitionControl;
 	BYTE n3dPerceptionSucceeded;
 	BYTE n3dWithinOneTile;
+	BYTE n3dSpawnMarkerApplied;
 	signed char n3dMoveX;
 	signed char n3dMoveY;
 	signed char n3dVerticalBobStep;
