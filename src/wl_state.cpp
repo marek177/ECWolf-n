@@ -933,8 +933,7 @@ ACTION_FUNCTION(A_NitemareGuardDeathFinalize)
 		self->temp1 = 0x14;
 		self->health = 255;
 		self->flags |= FL_SHOOTABLE | FL_SOLID;
-		if(result != NULL)
-			result->JumpFrame = self->SpawnState;
+		self->SetState(self->SpawnState);
 		return true;
 	}
 
