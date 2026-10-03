@@ -21,6 +21,7 @@ initial_sources(
 	g_shared/a_deathcam.cpp
 	g_shared/a_inventory.cpp
 	g_shared/a_keys.cpp
+	g_shared/a_nitemareguard.cpp
 	g_shared/a_patrolpoint.cpp
 	g_shared/a_playerpawn.cpp
 	g_shared/a_randomspawner.cpp

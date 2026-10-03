@@ -136,6 +136,189 @@ trailer. The loader exposes:
 This prepares native palette selection without baking a palette into IMG
 conversion.
 
+## Active generic GUARD runtime
+
+The native Nitemare GUARD bridge now carries the state fields needed by the
+recovered AI loop instead of representing enemies as static shootable sprites.
+
+Serialized per-actor runtime now includes:
+
+- original OBJECT/GUARD class,
+- strategy,
+- current and next state,
+- directional/result-octant cache,
+- transition-control/perception mode,
+- cached perception and one-tile proximity results,
+- signed X/Y movement components,
+- vertical-bob direction,
+- state timer,
+- elevation.
+
+Class-relative OBJECT variants are passed into
+`A_NitemareInitGuardClass(class, variant)`. The first four variants initialize
+N/E/S/W facing; the second four variants of eight-entry GUARD families start
+with the matching +/-8 movement vector and enter state 0x08.
+
+The active `A_NitemareGuardThink` slice currently implements:
+
+- state 0x01 delay -> 0x02,
+- state 0x02 alert/setup bridge -> 0x03,
+- state 0x03 attack-gate evaluation or movement planning,
+- state 0x04 attack recheck/contact-damage application -> 0x05,
+- state 0x05 strategy-0 local movement planning,
+- state 0x06 movement/timer -> 0x03,
+- state 0x07 facing-aware perception -> 0x02,
+- state 0x08 moving patrol/reacquire path,
+- state 0x13 strategy-3 timed displacement.
+
+Perception keeps the recovered independent +/-8-tile bounds and octant mask.
+State 0x03/0x04 use the recovered transition-control rule: mode 0 selects the
+one-tile square proximity result; modes 1/2 select the LOS/perception result.
+The state-7 path keeps facing/FOV enabled, while the attack gate bypasses facing,
+matching the two audited call forms of the original perception helper.
+
+Strategy-0 movement preserves the recovered `-8/0/+8` components and timer
+rules:
+
+- within one tile -> timer 8,
+- not perceived -> timer 0x18,
+- perceived/distant -> random 8..15,
+- Easy doubles the perceived/distant timer,
+- Hard halves it.
+
+Movement probes use the recovered 16-world-unit side extent and 8-world-unit
+step. X/Y blocking is evaluated independently; state 0x08 rejects the whole
+coordinate commit when either axis is blocked, while state 0x06 commits the
+surviving axis. When both axes are blocked in state 0x06, one stored component
+is randomly reversed for the next attempt.
+
+The state-04 contact attack uses the recovered distance metric and class switch.
+It intentionally leaves the unresolved class-0x16 global gate on the known
+non-gated branch (33 pre-difficulty) instead of equating the independent
+0x7E52 selector with ECWolf's episode number.
+
+### Remaining GUARD AI fidelity
+
+This is the first active runtime slice, not the complete original GUARD engine.
+Still separate:
+
+- exact SEQDEF alert/attack/recovery animation timing,
+- alert/attack/pain/death SND.DAT bindings,
+- strategy-1 low-HP nearest-door retreat and state 0x11,
+- state-0x08 TURN/RETREAT marker handling,
+- ordinary GUARD bump-open door semantics,
+- Cannon 0x0E/0x0F/0x10 cycle,
+- ACTIONSPOT/Dancers state 0x14,
+- exact map-object occupancy byte bookkeeping,
+- Omnificent/processing-gate behavior,
+- live parity for movement ordering and simultaneous door occupancy.
+
+## Live generic GUARD runtime
+
+The native `NitemareGuard` actor now carries the recovered runtime fields needed
+for the common GUARD loop: class, strategy, current/next state, octant/result
+octant, transition control, movement vector, perception/proximity cache, timer,
+slow-scheduler accumulator and vertical elevation.
+
+The implemented generic strategy-0 path follows the recovered Win16 state flow:
+
+`07/08 -> 02 -> 03 -> 04 -> 05 -> 06 -> 03`.
+
+Implemented behavior:
+
+- GUARD logic is gated to an approximately 8 Hz slow scheduler rather than
+  running once per ECWolf render/game tick;
+- perception rejects targets beyond 8 tiles on either axis;
+- facing uses the recovered 3-octant mask around the current octant;
+- the attack decision caches both LOS/perception and one-tile proximity;
+- Dracula/Bat/Ghost-style proximity-controlled classes use the recovered
+  transition-control mode instead of the normal LOS result;
+- generic strategy-0 planning uses signed `delta / 32`, random mask `&3`
+  without perception or `&7` with perception, and movement components
+  `-8, 0, +8`;
+- close targets use timer 8, unseen targets use 0x18, visible targets use
+  random 8..15 with Easy x2 / Hard /2 timing;
+- state 0x06 performs movement and returns to state 0x03 when its timer expires;
+- state 0x04 applies the recovered class-specific guard-to-player damage family,
+  then routes through ECWolf player damage/death handling;
+- if the player is killed, the attacking GUARD enters the recovered no-local-action
+  state 0x0B;
+- Bat, Dracula-Bat and Ghost use the recovered 10..35 vertical bob range.
+
+The contact-damage class family currently matches the closed table for Bat,
+Frankenstein/Mummy, Skeleton, the base/half/base-quarter classes, Dracula-family
+random damage and Cannon=100. Hamerstein currently uses the ordinary 100 branch:
+the special 33-damage condition also depends on the still-unrepresented 51A6
+event flag and is intentionally not guessed.
+
+### Remaining GUARD fidelity boundary
+
+Movement currently reuses ECWolf's `TryWalk/MoveObj` world collision after the
+Nitemare planner has selected the vector. The original `FUN_71DC/700A` uses
+axis-separated +/-0x10 probes, per-axis commit rules, door-controller side
+effects, state-08 all-or-nothing commits and a random single-axis bounce when
+state 06 is blocked on both axes. That collision/bounce layer is the next GUARD
+runtime target.
+
+Sequence banks +0x34/+0x36/+0x38 are not yet bound to native IMG/SEQDEF animation
+frames, so states 02/03/04 currently retain their recovered ordering using short
+wrapper timing rather than final original animation timing.
+
+## GUARD damage, pain and death receiver
+
+Player weapon damage now converges on one Nitemare-specific GUARD receiver
+instead of letting Silver Pistol and projectiles subtract ECWolf actor HP
+independently.
+
+The shared path now preserves these recovered rules:
+
+- class/weapon resistance is selected from the original OBJECT class 0x0C..0x1F
+  switch in one common helper;
+- Dr. Hamerstein class 0x16 uses fixed base damage 3 only when the independent
+  recovered Hamerstein gate (Win16 0x7E52) equals 3; until that gate has a
+  runtime representation in ECWolf, this branch remains damage-immune;
+- player->enemy difficulty scaling is applied once and final positive damage is
+  capped at 255;
+- non-lethal damage subtracts HP and enters the generated Pain state, which is
+  the current ECWolf placeholder for original GUARD state 0x15;
+- lethal damage sets HP to zero, removes further shootable eligibility, stores
+  killer position, awards the original class score immediately, and enters the
+  generated Death sequence;
+- generated GUARD actors carry their recovered runtime class in the serialized
+  actor `temp1` field, so class identity survives save/load and can change at
+  runtime independently of the original raw object ID.
+
+The kill-score table now follows the recovered 0x08..0x20 family, including
+Bat 25, Mrs H. 250, Dracula phase 1 score 0, Dracula-Bat 200, Penelope -1000,
+Dr. Hamerstein +1000 and Cannon 0.
+
+The generated Death state executes `A_NitemareGuardDeathFinalize`, modeling
+the original state-0x09 finalizer before terminal state 0x0A. Ordinary corpses
+lose SOLID/SHOOTABLE flags. Classes whose original finalizer clears the active
+render bit (0x09, 0x0A, 0x12, 0x13, 0x1A, 0x1E, 0x1F) terminate on an invisible
+TNT1 frame.
+
+Dracula class 0x11 follows the two-phase rule at finalization time rather than
+at lethal-hit time:
+
+- logical runtime class becomes 0x14,
+- HP resets to 255,
+- SOLID/SHOOTABLE are restored,
+- execution returns to the actor Spawn state.
+
+This preserves second-phase damage resistance and the 200-point final kill
+even though the final Dracula-Bat sprite/sequence substitution is still a
+visual placeholder.
+
+### Remaining fidelity boundary
+
+The full GUARD scheduler is not yet installed in ECWolf. Therefore the current
+Pain state uses a short generic reaction before returning to Spawn instead of
+the original strategy/state-specific routes through state 0x15, state 05 or
+state 08. Elevated death state 0x12, original death/pain frame selection,
+direction-cache invalidation, native pain/death SFX, Hamerstein ending-FLI
+handoff, and the final Dracula-Bat resource swap remain follow-up work.
+
 ## Projected-row player damage seed
 
 The player-to-GUARD damage base no longer uses the temporary generic 1..64

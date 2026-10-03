@@ -312,6 +312,68 @@ static int DefinitionIdElevatorGroup(const char *data, long length, unsigned int
 }
 
 
+static int DefinitionMinIdForClassRange(const char *data, long length,
+	const char *wantedBegin, const char *wantedEnd)
+{
+	const char *p = data;
+	const char *end = data + length;
+	int minimum = -1;
+
+	while(p < end)
+	{
+		const char *line = p;
+		while(p < end && *p != '\n')
+			++p;
+		const char *lineEnd = p;
+		if(p < end)
+			++p;
+
+		if(lineEnd > line && lineEnd[-1] == '\r')
+			--lineEnd;
+		while(line < lineEnd && IsDefinitionSpace(*line))
+			++line;
+		while(lineEnd > line && IsDefinitionSpace(lineEnd[-1]))
+			--lineEnd;
+		if(line == lineEnd)
+			continue;
+
+		const char *tokens[8];
+		const char *scan = line;
+		bool complete = true;
+		for(int field = 0; field < 4; ++field)
+		{
+			while(scan < lineEnd && IsDefinitionSpace(*scan))
+				++scan;
+			if(scan == lineEnd)
+			{
+				complete = false;
+				break;
+			}
+			tokens[field * 2] = scan;
+			while(scan < lineEnd && !IsDefinitionSpace(*scan))
+				++scan;
+			tokens[field * 2 + 1] = scan;
+		}
+		if(!complete)
+			continue;
+
+		const ptrdiff_t wantedLength = wantedEnd - wantedBegin;
+		if(tokens[7] - tokens[6] != wantedLength ||
+			strnicmp(tokens[6], wantedBegin, wantedLength) != 0)
+		{
+			continue;
+		}
+
+		unsigned int id;
+		if(ParseDefinitionId(tokens[0], tokens[1], id) &&
+			(minimum < 0 || id < static_cast<unsigned int>(minimum)))
+		{
+			minimum = static_cast<int>(id);
+		}
+	}
+	return minimum;
+}
+
 static int DefinitionMinIdForClassName(const char *data, long length, const char *className)
 {
 	const char *p = data;
@@ -779,6 +841,10 @@ static bool BuildDefinitionXlat(FileReader *reader, int episode, bool walls, FSt
 						sprite.Format("N%d%02X", episode, id);
 
 						const bool guardActor = objectClass >= 0x08 && objectClass <= 0x21;
+						const int guardBaseId = guardActor ?
+							DefinitionMinIdForClassRange(data, length, classBegin, classEnd) : -1;
+						const int guardVariant =
+							guardBaseId >= 0 ? static_cast<int>(id) - guardBaseId : 0;
 						const bool keyInventory = objectClass == 0x2F || objectClass == 0x30;
 						const bool pentagramInventory = objectClass == 0x3C;
 						const bool healthPickup = objectClass == 0x33;
@@ -840,22 +906,62 @@ static bool BuildDefinitionXlat(FileReader *reader, int episode, bool walls, FSt
 							properties += "\tradius 32\n";
 
 						FString actor;
-						actor.Format(
-							"actor %s%s\n"
-							"{\n"
-							"%s"
-							"%s"
-							"\tstates\n"
-							"\t{\n"
-							"\t\tSpawn:\n"
-							"\t\t\t%s A -1\n"
-							"\t\t\tstop\n"
-							"\t}\n"
-							"}\n\n",
-							actorName.GetChars(), parent.GetChars(),
-							properties.GetChars(),
-							(objectClass >= 0x08 && objectClass <= 0x2D) ? "\t+SOLID\n" : "",
-							sprite.GetChars());
+						const bool hideTerminalGuard =
+							objectClass == 0x09 || objectClass == 0x0A ||
+							objectClass == 0x12 || objectClass == 0x13 ||
+							objectClass == 0x1A || objectClass == 0x1E ||
+							objectClass == 0x1F;
+						if(guardActor)
+						{
+							actor.Format(
+								"actor %s%s\n"
+								"{\n"
+								"%s"
+								"\t+SOLID\n"
+								"\tstates\n"
+								"\t{\n"
+								"\t\tSpawn:\n"
+								"\t\t\tTNT1 A 0 A_NitemareInitGuardClass(%d, %d)\n"
+								"\t\tGuardLoop:\n"
+								"\t\t\t%s A 1 A_NitemareGuardThink\n"
+								"\t\t\tloop\n"
+								"\t\tPain:\n"
+								"\t\t\t%s A 1 A_NitemareGuardPainFinalize\n"
+								"\t\t\tgoto GuardLoop\n"
+								"\t\tDeath:\n"
+								"\t\t\t%s A 1 A_NitemareGuardDeathStep\n"
+								"\t\t\tloop\n"
+								"\t\tDeathDone:\n"
+								"\t\t\t%s A 1 A_NitemareGuardDeathFinalize\n"
+								"\t\t\t%s A -1\n"
+								"\t\t\tstop\n"
+								"\t}\n"
+								"}\n\n",
+								actorName.GetChars(), parent.GetChars(),
+								properties.GetChars(), objectClass, guardVariant,
+								sprite.GetChars(), sprite.GetChars(),
+								sprite.GetChars(), sprite.GetChars(),
+								hideTerminalGuard ? "TNT1" : sprite.GetChars());
+						}
+						else
+						{
+							actor.Format(
+								"actor %s%s\n"
+								"{\n"
+								"%s"
+								"%s"
+								"\tstates\n"
+								"\t{\n"
+								"\t\tSpawn:\n"
+								"\t\t\t%s A -1\n"
+								"\t\t\tstop\n"
+								"\t}\n"
+								"}\n\n",
+								actorName.GetChars(), parent.GetChars(),
+								properties.GetChars(),
+								(objectClass >= 0x08 && objectClass <= 0x2D) ? "\t+SOLID\n" : "",
+								sprite.GetChars());
+						}
 						*decorate += actor;
 					}
 				}
@@ -1171,11 +1277,21 @@ private:
 		if(length < HeaderSize)
 			return false;
 
-		BYTE countBytes[2];
+		BYTE mapHeader[HeaderSize];
 		Reader->Seek(0, SEEK_SET);
-		if(Reader->Read(countBytes, 2) != 2)
+		if(Reader->Read(mapHeader, HeaderSize) != HeaderSize)
 			return false;
-		const WORD declaredCount = ReadLittleShort(countBytes);
+		const WORD declaredCount = ReadLittleShort(mapHeader);
+
+		int wallClassBase[256];
+		for(unsigned int classId = 0; classId < 256; ++classId)
+			wallClassBase[classId] = -1;
+		for(unsigned int rawId = 0; rawId < 256; ++rawId)
+		{
+			const BYTE classId = mapHeader[2 + rawId];
+			if(wallClassBase[classId] < 0)
+				wallClassBase[classId] = rawId;
+		}
 
 		const long payload = length - HeaderSize;
 		if(payload < 0 || payload % LevelBytes != 0)
@@ -1209,13 +1325,38 @@ private:
 				return false;
 
 			unsigned int idCardMask = 0;
+			FString guardMarkerMeta;
 			for(unsigned int cell = 0; cell < 64 * 64; ++cell)
 			{
+				const BYTE wallId = raw[cell * 2];
 				const BYTE objectId = raw[cell * 2 + 1];
 				if(objectId == 0x09)
 					idCardMask |= 0x01;
 				else if(objectId == 0x0A)
 					idCardMask |= 0x02;
+
+				const BYTE wallClass = mapHeader[2 + wallId];
+				// Preserve dynamic-door classes too: strategy-1 FLEE scans
+				// the original bounded door table for a nearest LOS-valid target.
+				if(wallClass >= 0x31 && wallClass <= 0x46 &&
+					wallClassBase[wallClass] >= 0)
+				{
+					const unsigned int x = cell & 63;
+					const unsigned int y = cell >> 6;
+					const unsigned int variant =
+						wallId - static_cast<unsigned int>(wallClassBase[wallClass]);
+					FString markerLine;
+					markerLine.Format("%u %u %u %u\n",
+						x, y, static_cast<unsigned int>(wallClass), variant);
+					guardMarkerMeta += markerLine;
+				}
+			}
+
+			if(guardMarkerMeta.IsNotEmpty())
+			{
+				FString guardMetaName;
+				guardMetaName.Format("N%dM%02uGM", episode, i + 1);
+				AddMemory(guardMetaName, guardMarkerMeta);
 			}
 
 			FString cardMetaName;

@@ -1,4 +1,4 @@
-actor NitemareGuardBase
+actor NitemareGuardBase : NitemareGuard
 {
 	health 255
 	radius 32

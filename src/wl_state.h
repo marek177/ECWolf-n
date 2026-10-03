@@ -21,6 +21,9 @@ bool MoveObj (AActor *ob, int32_t move);
 bool SightPlayer (AActor *ob, double minseedist, double maxseedist, double maxheardist, double fov, const Frame *state);
 
 void    DamageActor (AActor *ob, AActor *attacker, unsigned damage);
+int     NitemareGuardClassCode(AActor *ob);
+int     NitemareTransformGuardDamage(int rawDamage, int objectClass, int weaponSelector);
+void    NitemareDamageGuard(AActor *ob, AActor *attacker, unsigned damage);
 
 bool CheckSlidePass(unsigned int style, unsigned int intercept, unsigned int amount);
 bool CheckLine (const AActor *ob, const AActor *ob2);

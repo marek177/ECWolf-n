@@ -1344,106 +1344,6 @@ static bool NitemareSilverPathClear(AActor *source, AActor *target)
 	return true;
 }
 
-static int NitemareGuardClassCode(AActor *actor)
-{
-	if(actor == NULL)
-		return -1;
-
-	static const ClassDef *guardClasses[0x22] = {NULL};
-	static bool initialized = false;
-	if(!initialized)
-	{
-		for(unsigned int objectClass = 0x08; objectClass <= 0x21; ++objectClass)
-		{
-			FString name;
-			name.Format("NitemareGuardClass%02X", objectClass);
-			guardClasses[objectClass] = ClassDef::FindClass(name.GetChars());
-		}
-		initialized = true;
-	}
-
-	const ClassDef *actual = actor->GetClass();
-	for(unsigned int objectClass = 0x08; objectClass <= 0x21; ++objectClass)
-	{
-		const ClassDef *base = guardClasses[objectClass];
-		if(base != NULL && (actual == base || actual->IsDescendantOf(base)))
-			return static_cast<int>(objectClass);
-	}
-	return -1;
-}
-
-static int NitemareSilverDamageTransform(int rawDamage, int objectClass)
-{
-	if(rawDamage <= 0)
-		return 0;
-
-	switch(objectClass)
-	{
-		case 0x0C:
-		case 0x0D:
-		case 0x1D:
-		case 0x1E:
-			return rawDamage / 8;
-
-		case 0x0E:
-		case 0x11:
-		case 0x14:
-		case 0x1B:
-		case 0x1C:
-			return rawDamage / 2;
-
-		case 0x12:
-		case 0x13:
-		case 0x17:
-		case 0x1F:
-			return rawDamage / 4;
-
-		case 0x18:
-			return rawDamage / 16;
-
-		case 0x0F:
-		case 0x10:
-			return rawDamage / 256;
-
-		case 0x15: // Penelope special path.
-		case 0x19: // Cannon ignores ordinary player weapon damage.
-		case 0x1A: // Ghost is vulnerable only to Magic Wand.
-			return 0;
-
-		case 0x16:
-			// Hamerstein uses the separate 0x7E52 gate and literal base 3.
-			// Until that script state exists in ECWolf, do not invent damage.
-			return 0;
-
-		default:
-			return rawDamage;
-	}
-}
-
-static void NitemareApplyGuardDamage(AActor *target, AActor *attacker, int damage)
-{
-	if(target == NULL || damage <= 0)
-		return;
-
-	damage = FixedMul(damage, gamestate.difficulty->PlayerDamageFactor);
-	if(damage <= 0)
-		return;
-
-	target->health -= damage;
-	if(attacker != NULL && attacker->player)
-		target->target = attacker;
-
-	if(target->health <= 0)
-	{
-		if(attacker != NULL)
-		{
-			target->killerx = attacker->x;
-			target->killery = attacker->y;
-		}
-		target->Die();
-	}
-}
-
 static FRandom pr_nitemarepistol("NitemareSilverPistol");
 
 ACTION_FUNCTION(A_NitemareSilverHitscan)
@@ -1480,8 +1380,8 @@ ACTION_FUNCTION(A_NitemareSilverHitscan)
 		const int rawDamage = projectionScale > 0 ?
 			projectionScale * 8 + (pr_nitemarepistol() % 25) : 0;
 		if(guardClass >= 0)
-			NitemareApplyGuardDamage(
-				check, self, NitemareSilverDamageTransform(rawDamage, guardClass));
+			NitemareDamageGuard(
+				check, self, NitemareTransformGuardDamage(rawDamage, guardClass, 2));
 		else
 			DamageActor(check, self, rawDamage);
 	}
