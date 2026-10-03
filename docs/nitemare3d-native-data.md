@@ -136,6 +136,54 @@ trailer. The loader exposes:
 This prepares native palette selection without baking a palette into IMG
 conversion.
 
+## Remote control panels and remote doors
+
+Episode 2's remote-control path is now wired from the original WALLS catalog
+instead of being hard-coded to one map.
+
+The relevant catalog relationships are:
+
+- `CONTROL` #1 / #2,
+- `DOORVR` #1 / #2,
+- `DOORHR` #1 / #2.
+
+The generated XLAT extracts the numeric group from the original descriptions.
+CONTROL #1 requires the red ID card (lock 205) and targets remote-door group 0;
+CONTROL #2 requires the yellow ID card (lock 206) and targets group 1. The
+vertical/horizontal remote-door raw IDs are looked up from the same WALLS table
+and passed to the runtime special, so the implementation does not bake AC/AD/
+AE/AF into engine code.
+
+`Nitemare_RemoteControl` (special 19) exposes the recovered five-command
+modal menu:
+
+- Open remote doors (original command 0x1E),
+- Close remote doors (0x1F),
+- Enable remote cannons (0x20),
+- Disable remote cannons (0x21),
+- Cancel.
+
+The original menu-state rules are preserved: Open and Close are mutually
+exclusive according to the per-group remote state; Enable and Disable are
+mutually exclusive according to the global cannon-enable state.
+
+Remote-door command state is stored as hidden, level-local Inventory markers.
+This deliberately mirrors the lifecycle of the original saved level flags:
+ECWolf savegames preserve the markers, while ordinary map transitions remove
+them because their inter-hub amount is zero. The cannon state uses an inverted
+`NitemareRemoteCannonsDisabled` marker so the normal level-start default is
+enabled without a special initialization pass.
+
+Remote doors use the existing EVDoor geometry with a Nitemare-only latched-open
+mode. Open keeps the door open until a matching remote Close command. Close
+uses a forced state transition without the ordinary occupancy precheck, matching
+the recovered Nitemare remote-command path; actor movement/collision handles
+any later overlap rather than adding door-crush damage.
+
+The cannon menu state is now preserved and ready for class-0x19 Cannon AI.
+Generated Cannon actors are still structural placeholders, so Enable/Disable
+does not yet alter attacks until that AI runtime is implemented.
+
 ## Mirror / Other Side portal (WARP_S1 / WARP_S2)
 
 The special mirror family is now connected to the recovered pentagram progress
