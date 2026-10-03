@@ -136,6 +136,43 @@ trailer. The loader exposes:
 This prepares native palette selection without baking a palette into IMG
 conversion.
 
+## Elevator floor selectors (WARP_E1..WARP_E8)
+
+The elevator family now follows the recovered Nitemare floor-selector path.
+
+For each logical `WARP_E1..WARP_E8` class the generated XLAT records the
+current raw wall ID plus the class-local minimum and maximum raw IDs. Runtime
+then reproduces the original split between definition data and current-map
+usage:
+
+- the lowest raw ID comes from the WALLS class mapping,
+- the highest usable floor is constrained by members actually present in the
+  current 64x64 map,
+- no more than ten floors are exposed,
+- the selected floor resolves to `targetRaw - currentRaw`,
+- that delta is passed through the same wall-target/free-neighbor relocation
+  model used by the recovered `FUN_1010_2800` helper.
+
+The original floor availability rule is also retained for normal gameplay.
+When a MAP level is loaded, the native loader stores a two-bit static mask
+describing whether raw IDCARD objects 0x09 (red) and 0x0A (yellow) were
+originally present in that level. The elevator runtime compares this with the
+player's current Nitemare ID-card inventory:
+
+`unavailable = staticCardPresenceMask XOR playerCardMask`.
+
+Floor menu entries selected by this mask remain visible but disabled and are
+skipped by navigation, matching the original menu-record state 6 behavior.
+
+The original `DAT_1048_4BE6` bypass is now identified as the Omnifarious
+cheat. ECWolf does not yet provide the Nitemare cheat backend, so this bypass
+is intentionally not exposed; default/non-cheat gameplay follows the original
+availability rule.
+
+The modal ECWolf presentation is functional rather than pixel-identical: it
+labels disabled rows as `[locked]` and permits Escape to close the selector.
+The transport/floor selection semantics are the fidelity target of this layer.
+
 ## Climb warps (WARP_1..WARP_8)
 
 The Win16 climb family is now decoded and wired into the generated translator.
