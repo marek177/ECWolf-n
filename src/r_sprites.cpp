@@ -189,6 +189,45 @@ bool R_ActorCrossesAimCenter(AActor *actor, int slackPixels)
 	return left - slackPixels < centerx && right + slackPixels > centerx;
 }
 
+int R_NitemareProjectedDamageScale(AActor *actor)
+{
+	if(actor == NULL || actor->state == NULL || actor->viewheight == 0 ||
+		actor->sprite == SPR_NONE || actor->sprite >= loadedSprites.Size() ||
+		loadedSprites[actor->sprite].numFrames == 0)
+	{
+		return 0;
+	}
+
+	const Sprite &spr =
+		spriteFrames[loadedSprites[actor->sprite].frames + actor->state->frame];
+	FTexture *tex;
+	if(spr.rotations == 0)
+		tex = TexMan[spr.texture[0]];
+	else
+		tex = TexMan[spr.texture[CalcRotate(actor)]];
+
+	if(tex == NULL || tex->GetHeight() == 0)
+		return 0;
+
+	// Original Nitemare renderer:
+	// projectedSpriteHeight = sourceHeight * projectionScale / 32.
+	// Therefore projectionScale = projectedHeight * 32 / sourceHeight.
+	// ECWolf's dyScale gives the actual projected texture scale for the
+	// already cached actor->viewheight.
+	const double dyScale =
+		(actor->viewheight / 256.0) * FIXED2FLOAT(actor->scaleY);
+	const double projectedHeight = tex->GetScaledHeightDouble() * dyScale;
+	const double projectionScale =
+		projectedHeight * 32.0 / static_cast<double>(tex->GetHeight());
+
+	if(projectionScale <= 0)
+		return 0;
+	if(projectionScale > 32767.0)
+		return 32767;
+	return static_cast<int>(projectionScale);
+}
+
+
 void R_InstallSprite(Sprite &frame, FTexture *tex, int dir, bool mirror)
 {
 	if(dir < -1 || dir >= 8)
