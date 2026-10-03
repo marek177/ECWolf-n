@@ -83,6 +83,7 @@ actor Actor native
 	action native A_NitemareGuardDeathStep();
 	action native A_NitemareGuardDeathFinalize();
 	action native A_NitemareGuardPainFinalize();
+	action native A_NitemareGuardThink();
 	action native A_Pain();
 	action native A_PlaySound(string soundname);
 	action native A_ScaleVelocity(float scale);
