@@ -1277,11 +1277,21 @@ private:
 		if(length < HeaderSize)
 			return false;
 
-		BYTE countBytes[2];
+		BYTE mapHeader[HeaderSize];
 		Reader->Seek(0, SEEK_SET);
-		if(Reader->Read(countBytes, 2) != 2)
+		if(Reader->Read(mapHeader, HeaderSize) != HeaderSize)
 			return false;
-		const WORD declaredCount = ReadLittleShort(countBytes);
+		const WORD declaredCount = ReadLittleShort(mapHeader);
+
+		int wallClassBase[256];
+		for(unsigned int classId = 0; classId < 256; ++classId)
+			wallClassBase[classId] = -1;
+		for(unsigned int rawId = 0; rawId < 256; ++rawId)
+		{
+			const BYTE classId = mapHeader[2 + rawId];
+			if(wallClassBase[classId] < 0)
+				wallClassBase[classId] = rawId;
+		}
 
 		const long payload = length - HeaderSize;
 		if(payload < 0 || payload % LevelBytes != 0)
@@ -1315,13 +1325,36 @@ private:
 				return false;
 
 			unsigned int idCardMask = 0;
+			FString guardMarkerMeta;
 			for(unsigned int cell = 0; cell < 64 * 64; ++cell)
 			{
+				const BYTE wallId = raw[cell * 2];
 				const BYTE objectId = raw[cell * 2 + 1];
 				if(objectId == 0x09)
 					idCardMask |= 0x01;
 				else if(objectId == 0x0A)
 					idCardMask |= 0x02;
+
+				const BYTE wallClass = mapHeader[2 + wallId];
+				if(wallClass >= 0x41 && wallClass <= 0x46 &&
+					wallClassBase[wallClass] >= 0)
+				{
+					const unsigned int x = cell & 63;
+					const unsigned int y = cell >> 6;
+					const unsigned int variant =
+						wallId - static_cast<unsigned int>(wallClassBase[wallClass]);
+					FString markerLine;
+					markerLine.Format("%u %u %u %u\n",
+						x, y, static_cast<unsigned int>(wallClass), variant);
+					guardMarkerMeta += markerLine;
+				}
+			}
+
+			if(guardMarkerMeta.IsNotEmpty())
+			{
+				FString guardMetaName;
+				guardMetaName.Format("N%dM%02uGM", episode, i + 1);
+				AddMemory(guardMetaName, guardMarkerMeta);
 			}
 
 			FString cardMetaName;
