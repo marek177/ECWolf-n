@@ -312,6 +312,68 @@ static int DefinitionIdElevatorGroup(const char *data, long length, unsigned int
 }
 
 
+static int DefinitionMinIdForClassRange(const char *data, long length,
+	const char *wantedBegin, const char *wantedEnd)
+{
+	const char *p = data;
+	const char *end = data + length;
+	int minimum = -1;
+
+	while(p < end)
+	{
+		const char *line = p;
+		while(p < end && *p != '\n')
+			++p;
+		const char *lineEnd = p;
+		if(p < end)
+			++p;
+
+		if(lineEnd > line && lineEnd[-1] == '\r')
+			--lineEnd;
+		while(line < lineEnd && IsDefinitionSpace(*line))
+			++line;
+		while(lineEnd > line && IsDefinitionSpace(lineEnd[-1]))
+			--lineEnd;
+		if(line == lineEnd)
+			continue;
+
+		const char *tokens[8];
+		const char *scan = line;
+		bool complete = true;
+		for(int field = 0; field < 4; ++field)
+		{
+			while(scan < lineEnd && IsDefinitionSpace(*scan))
+				++scan;
+			if(scan == lineEnd)
+			{
+				complete = false;
+				break;
+			}
+			tokens[field * 2] = scan;
+			while(scan < lineEnd && !IsDefinitionSpace(*scan))
+				++scan;
+			tokens[field * 2 + 1] = scan;
+		}
+		if(!complete)
+			continue;
+
+		const ptrdiff_t wantedLength = wantedEnd - wantedBegin;
+		if(tokens[7] - tokens[6] != wantedLength ||
+			strnicmp(tokens[6], wantedBegin, wantedLength) != 0)
+		{
+			continue;
+		}
+
+		unsigned int id;
+		if(ParseDefinitionId(tokens[0], tokens[1], id) &&
+			(minimum < 0 || id < static_cast<unsigned int>(minimum)))
+		{
+			minimum = static_cast<int>(id);
+		}
+	}
+	return minimum;
+}
+
 static int DefinitionMinIdForClassName(const char *data, long length, const char *className)
 {
 	const char *p = data;
@@ -779,6 +841,10 @@ static bool BuildDefinitionXlat(FileReader *reader, int episode, bool walls, FSt
 						sprite.Format("N%d%02X", episode, id);
 
 						const bool guardActor = objectClass >= 0x08 && objectClass <= 0x21;
+						const int guardBaseId = guardActor ?
+							DefinitionMinIdForClassRange(data, length, classBegin, classEnd) : -1;
+						const int guardVariant =
+							guardBaseId >= 0 ? static_cast<int>(id) - guardBaseId : 0;
 						const bool keyInventory = objectClass == 0x2F || objectClass == 0x30;
 						const bool pentagramInventory = objectClass == 0x3C;
 						const bool healthPickup = objectClass == 0x33;
@@ -855,7 +921,7 @@ static bool BuildDefinitionXlat(FileReader *reader, int episode, bool walls, FSt
 								"\tstates\n"
 								"\t{\n"
 								"\t\tSpawn:\n"
-								"\t\t\tTNT1 A 0 A_NitemareInitGuardClass(%d)\n"
+								"\t\t\tTNT1 A 0 A_NitemareInitGuardClass(%d, %d)\n"
 								"\t\t\t%s A -1\n"
 								"\t\t\tstop\n"
 								"\t\tPain:\n"
@@ -871,7 +937,7 @@ static bool BuildDefinitionXlat(FileReader *reader, int episode, bool walls, FSt
 								"\t}\n"
 								"}\n\n",
 								actorName.GetChars(), parent.GetChars(),
-								properties.GetChars(), objectClass,
+								properties.GetChars(), objectClass, guardVariant,
 								sprite.GetChars(), sprite.GetChars(),
 								sprite.GetChars(), sprite.GetChars(),
 								hideTerminalGuard ? "TNT1" : sprite.GetChars());
