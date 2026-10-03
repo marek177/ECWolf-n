@@ -78,6 +78,8 @@ struct Sprite
 static TArray<Sprite> spriteFrames;
 static TArray<SpriteInfo> loadedSprites;
 
+unsigned int CalcRotate(AActor *ob);
+
 bool R_CheckSpriteValid(unsigned int spr)
 {
 	if(spr < NUM_SPECIAL_SPRITES)
