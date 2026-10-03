@@ -283,6 +283,35 @@ static void NitemareUpdateOctant(ANitemareGuard *guard)
 		guard->n3dOctant = 4;
 }
 
+static void NitemareTickVerticalBob(ANitemareGuard *guard)
+{
+	if(guard->n3dObjectClass != 0x08 &&
+		guard->n3dObjectClass != 0x14 &&
+		guard->n3dObjectClass != 0x1A)
+	{
+		return;
+	}
+
+	if(guard->n3dVerticalBobStep == 0)
+		guard->n3dVerticalBobStep = 1;
+
+	guard->n3dElevation += guard->n3dVerticalBobStep;
+
+	if(guard->n3dElevation <= 10)
+	{
+		guard->n3dElevation = 10;
+		guard->n3dVerticalBobStep =
+			static_cast<signed char>(-guard->n3dVerticalBobStep);
+	}
+
+	if(guard->n3dElevation >= 0x23)
+	{
+		guard->n3dElevation = 0x23;
+		guard->n3dVerticalBobStep =
+			static_cast<signed char>(-guard->n3dVerticalBobStep);
+	}
+}
+
 static dirtype NitemareDirFromVector(signed char x, signed char y)
 {
 	if(x > 0)
@@ -487,6 +516,8 @@ void ANitemareGuard::Tick()
 
 		case 0x06:
 		{
+			NitemareTickVerticalBob(this);
+
 			if(dir == nodir || distance <= 0)
 			{
 				dir = NitemareDirFromVector(n3dMoveX, n3dMoveY);
