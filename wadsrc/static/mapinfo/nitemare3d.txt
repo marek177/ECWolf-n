@@ -21,18 +21,24 @@ skill easy
 {
 	name = "Easy"
 	spawnfilter = 1
+	damagefactor = 0.5
+	playerdamagefactor = 2.0
 }
 
 skill normal
 {
 	name = "Normal"
 	spawnfilter = 2
+	damagefactor = 1.0
+	playerdamagefactor = 1.0
 }
 
 skill hard
 {
 	name = "Hard"
 	spawnfilter = 3
+	damagefactor = 2.0
+	playerdamagefactor = 0.5
 }
 
 adddefaultmap
