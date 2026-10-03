@@ -763,6 +763,597 @@ bool MoveObj (AActor *ob, int32_t move)
 ===================
 */
 
+static FRandom pr_nitemareguardai("NitemareGuardAI");
+
+static AActor *NitemareGuardPlayerTarget(AActor *guard)
+{
+	if(guard != NULL && guard->target != NULL &&
+		guard->target->player != NULL && guard->target->health > 0)
+	{
+		return guard->target;
+	}
+
+	for(unsigned int i = 0; i < Net::InitVars.numPlayers; ++i)
+	{
+		if(players[i].mo != NULL && players[i].health > 0)
+			return players[i].mo;
+	}
+	return NULL;
+}
+
+static void NitemareGuardUpdateOctant(ANitemareGuard *guard, int moveX, int moveY)
+{
+	if(guard == NULL)
+		return;
+
+	if(moveX > 0)
+	{
+		guard->n3dOctant = moveY < 0 ? 1 : moveY > 0 ? 3 : 2;
+		return;
+	}
+	if(moveX < 0)
+	{
+		guard->n3dOctant = moveY < 0 ? 7 : moveY > 0 ? 5 : 6;
+		return;
+	}
+	if(moveY < 0)
+		guard->n3dOctant = 0;
+	else if(moveY > 0)
+		guard->n3dOctant = 4;
+}
+
+static bool NitemareGuardPerceptionPrefilter(
+	ANitemareGuard *guard, AActor *self, AActor *player, bool ignoreFacing)
+{
+	if(guard == NULL || self == NULL || player == NULL)
+		return false;
+
+	const int dx = static_cast<int>(player->tilex) - static_cast<int>(self->tilex);
+	const int dy = static_cast<int>(player->tiley) - static_cast<int>(self->tiley);
+	const int absX = abs(dx);
+	const int absY = abs(dy);
+	if(absX > 8 || absY > 8)
+		return false;
+
+	if(ignoreFacing)
+		return true;
+
+	const int octant = guard->n3dOctant & 7;
+	int candidateMask =
+		(1 << ((octant - 1) & 7)) |
+		(1 << octant) |
+		(1 << ((octant + 1) & 7));
+	candidateMask &= absX < absY ? 0x99 : 0x66;
+	candidateMask &= dy >= 0 ? 0x3C : 0xC3;
+	candidateMask &= dx >= 0 ? 0x0F : 0xF0;
+	return candidateMask != 0;
+}
+
+static bool NitemareGuardIntermediateActorBlocks(
+	AActor *self, AActor *player, int tileX, int tileY)
+{
+	for(AActor::Iterator iter = AActor::GetIterator(); iter.Next();)
+	{
+		AActor *actor = iter;
+		if(actor == self || actor == player || !(actor->flags & FL_SOLID))
+			continue;
+		if(static_cast<int>(actor->tilex) == tileX &&
+			static_cast<int>(actor->tiley) == tileY)
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+static bool NitemareGuardTracePerception(
+	AActor *self, AActor *player, bool secondaryObjectChecks)
+{
+	if(self == NULL || player == NULL)
+		return false;
+	if(!CheckLine(player, self))
+		return false;
+
+	int x = self->tilex;
+	int y = self->tiley;
+	const int targetX = player->tilex;
+	const int targetY = player->tiley;
+	const int dx = abs(targetX - x);
+	const int dy = abs(targetY - y);
+	const int sx = x < targetX ? 1 : -1;
+	const int sy = y < targetY ? 1 : -1;
+	int error = dx - dy;
+
+	for(int step = 0; step < 8; ++step)
+	{
+		if(x == targetX && y == targetY)
+			return true;
+
+		const int twiceError = error * 2;
+		if(twiceError > -dy)
+		{
+			error -= dy;
+			x += sx;
+		}
+		if(twiceError < dx)
+		{
+			error += dx;
+			y += sy;
+		}
+
+		if(x == targetX && y == targetY)
+			return true;
+
+		if(secondaryObjectChecks &&
+			NitemareGuardIntermediateActorBlocks(self, player, x, y))
+		{
+			return false;
+		}
+	}
+	return false;
+}
+
+static bool NitemareGuardEvaluatePerception(
+	ANitemareGuard *guard, AActor *self, AActor *player,
+	bool secondaryObjectChecks, bool ignoreFacing)
+{
+	if(!NitemareGuardPerceptionPrefilter(guard, self, player, ignoreFacing))
+		return false;
+	return NitemareGuardTracePerception(self, player, secondaryObjectChecks);
+}
+
+static bool NitemareGuardEvaluateAttackGate(
+	ANitemareGuard *guard, AActor *self, AActor *player)
+{
+	if(guard == NULL || self == NULL || player == NULL)
+		return false;
+
+	const bool perceived =
+		NitemareGuardEvaluatePerception(guard, self, player, true, true);
+	guard->n3dPerceptionSucceeded = perceived ? 1 : 0;
+
+	const bool close =
+		abs(player->x - self->x) <= TILEGLOBAL &&
+		abs(player->y - self->y) <= TILEGLOBAL;
+	guard->n3dWithinOneTile = close ? 1 : 0;
+
+	switch(guard->n3dTransitionControl)
+	{
+		case 0: return close;
+		case 1:
+		case 2: return perceived;
+		default: return false;
+	}
+}
+
+static int NitemareGuardDifficultyIndex()
+{
+	if(gamestate.difficulty->PlayerDamageFactor > FRACUNIT)
+		return 0;
+	if(gamestate.difficulty->PlayerDamageFactor < FRACUNIT)
+		return 2;
+	return 1;
+}
+
+static signed char NitemareSignedStep(int value)
+{
+	return value < 0 ? -8 : value > 0 ? 8 : 0;
+}
+
+static void NitemareGuardPlanStrategy0(
+	ANitemareGuard *guard, AActor *self, AActor *player)
+{
+	if(guard == NULL || self == NULL || player == NULL)
+		return;
+
+	const int halfTile = TILEGLOBAL / 2;
+	const int deltaX32 = halfTile != 0 ? (player->x - self->x) / halfTile : 0;
+	const int deltaY32 = halfTile != 0 ? (player->y - self->y) / halfTile : 0;
+	const int choice =
+		pr_nitemareguardai() & (guard->n3dPerceptionSucceeded == 0 ? 3 : 7);
+
+	if(choice == 0)
+	{
+		if(deltaX32 == 0) guard->n3dMoveX = 8;
+		if(deltaY32 == 0) guard->n3dMoveY = 8;
+	}
+	else if(choice == 1)
+	{
+		if(deltaX32 == 0) guard->n3dMoveX = -8;
+		if(deltaY32 == 0) guard->n3dMoveY = -8;
+	}
+	else
+	{
+		guard->n3dMoveX = NitemareSignedStep(deltaX32);
+		guard->n3dMoveY = NitemareSignedStep(deltaY32);
+	}
+
+	if(guard->n3dWithinOneTile != 0)
+		guard->n3dTimer = 8;
+	else if(guard->n3dPerceptionSucceeded == 0)
+		guard->n3dTimer = 0x18;
+	else
+	{
+		int timer = (pr_nitemareguardai() % 8) + 8;
+		const int difficulty = NitemareGuardDifficultyIndex();
+		if(difficulty == 2)
+			timer >>= 1;
+		else if(difficulty == 0)
+			timer <<= 1;
+		guard->n3dTimer = static_cast<WORD>(timer);
+	}
+
+	guard->n3dCurrentState = 0x06;
+	NitemareGuardUpdateOctant(guard, guard->n3dMoveX, guard->n3dMoveY);
+}
+
+static bool NitemareGuardPointBlocked(
+	AActor *self, AActor *player, fixed x, fixed y)
+{
+	if(self == NULL || map == NULL)
+		return true;
+
+	if(player != NULL)
+	{
+		const fixed playerExtent = (42 * TILEGLOBAL) / 64;
+		if(abs(x - player->x) < playerExtent &&
+			abs(y - player->y) < playerExtent)
+		{
+			return true;
+		}
+	}
+
+	const int tileX = x >> TILESHIFT;
+	const int tileY = y >> TILESHIFT;
+	if(tileX < 0 || tileY < 0 ||
+		tileX >= static_cast<int>(map->GetHeader().width) ||
+		tileY >= static_cast<int>(map->GetHeader().height))
+	{
+		return true;
+	}
+
+	MapSpot spot = map->GetSpot(tileX, tileY, 0);
+	if(spot == NULL)
+		return true;
+
+	if(spot->tile != NULL)
+	{
+		bool passableDoor = false;
+		for(int side = 0; side < 4; ++side)
+		{
+			if(spot->slideAmount[side] == 0xffff)
+			{
+				passableDoor = true;
+				break;
+			}
+		}
+		if(!passableDoor)
+			return true;
+	}
+
+	for(AActor::Iterator iter = AActor::GetIterator(); iter.Next();)
+	{
+		AActor *actor = iter;
+		if(actor == self || actor == player || !(actor->flags & FL_SOLID))
+			continue;
+		if(static_cast<int>(actor->tilex) == tileX &&
+			static_cast<int>(actor->tiley) == tileY)
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+static void NitemareGuardTickVerticalBob(ANitemareGuard *guard)
+{
+	if(guard == NULL)
+		return;
+	if(guard->n3dObjectClass != 0x08 &&
+		guard->n3dObjectClass != 0x14 &&
+		guard->n3dObjectClass != 0x1A)
+	{
+		return;
+	}
+
+	if(guard->n3dVerticalBobStep == 0)
+		guard->n3dVerticalBobStep = 1;
+
+	int next = guard->n3dElevation + guard->n3dVerticalBobStep;
+	if(next <= 10)
+	{
+		next = 10;
+		guard->n3dVerticalBobStep = -guard->n3dVerticalBobStep;
+	}
+	else if(next >= 0x23)
+	{
+		next = 0x23;
+		guard->n3dVerticalBobStep = -guard->n3dVerticalBobStep;
+	}
+	guard->n3dElevation = static_cast<short>(next);
+}
+
+static bool NitemareGuardTryMove(
+	ANitemareGuard *guard, AActor *self, AActor *player)
+{
+	if(guard == NULL || self == NULL)
+		return false;
+
+	NitemareGuardTickVerticalBob(guard);
+
+	const fixed unit = TILEGLOBAL / 64;
+	const fixed extent = 16 * unit;
+	const fixed moveX = guard->n3dMoveX * unit;
+	const fixed moveY = guard->n3dMoveY * unit;
+	const fixed padX = guard->n3dMoveX < 0 ? -extent :
+		guard->n3dMoveX > 0 ? extent : 0;
+	const fixed padY = guard->n3dMoveY < 0 ? -extent :
+		guard->n3dMoveY > 0 ? extent : 0;
+
+	bool xBlocked = false;
+	bool yBlocked = false;
+
+	if(moveX != 0)
+	{
+		const fixed probeX = self->x + moveX + padX;
+		xBlocked =
+			NitemareGuardPointBlocked(self, player, probeX, self->y - extent) ||
+			NitemareGuardPointBlocked(self, player, probeX, self->y + extent);
+	}
+	if(moveY != 0)
+	{
+		const fixed probeY = self->y + moveY + padY;
+		yBlocked =
+			NitemareGuardPointBlocked(self, player, self->x - extent, probeY) ||
+			NitemareGuardPointBlocked(self, player, self->x + extent, probeY);
+	}
+
+	fixed appliedX = xBlocked ? 0 : moveX;
+	fixed appliedY = yBlocked ? 0 : moveY;
+	const bool commit =
+		guard->n3dCurrentState != 0x08 || (!xBlocked && !yBlocked);
+
+	if(commit)
+	{
+		self->x += appliedX;
+		self->y += appliedY;
+
+		const unsigned int newTileX = self->x >> TILESHIFT;
+		const unsigned int newTileY = self->y >> TILESHIFT;
+		if(newTileX != self->tilex || newTileY != self->tiley)
+		{
+			self->tilex = newTileX;
+			self->tiley = newTileY;
+			MapSpot newSpot = map->GetSpot(newTileX, newTileY, 0);
+			if(newSpot != NULL)
+				self->EnterZone(newSpot->zone);
+		}
+	}
+
+	int octantX = appliedX == 0 ? 0 : (appliedX > 0 ? 1 : -1);
+	int octantY = appliedY == 0 ? 0 : (appliedY > 0 ? 1 : -1);
+
+	if(guard->n3dCurrentState == 0x06 && xBlocked && yBlocked)
+	{
+		if((pr_nitemareguardai() & 1) != 0)
+		{
+			guard->n3dMoveX = -guard->n3dMoveX;
+			octantX = guard->n3dMoveX;
+			octantY = 0;
+		}
+		else
+		{
+			guard->n3dMoveY = -guard->n3dMoveY;
+			octantX = 0;
+			octantY = guard->n3dMoveY;
+		}
+	}
+
+	if(octantX != 0 || octantY != 0)
+		NitemareGuardUpdateOctant(guard, octantX, octantY);
+
+	return commit && (appliedX != 0 || appliedY != 0);
+}
+
+static int NitemareGuardRoundedDistance(AActor *guard, AActor *player)
+{
+	const int dx = static_cast<int>(guard->tilex) - static_cast<int>(player->tilex);
+	const int dy = static_cast<int>(guard->tiley) - static_cast<int>(player->tiley);
+	const int squared = dx * dx + dy * dy;
+	if(squared <= 1)
+		return squared < 0 ? 0 : squared;
+
+	int root = 0;
+	while((root + 1) * (root + 1) <= squared)
+		++root;
+	const int remainder = squared - root * root;
+	if(remainder >= root - 1)
+		++root;
+	return root;
+}
+
+static int NitemareGuardContactDamage(
+	ANitemareGuard *guard, AActor *self, AActor *player)
+{
+	if(guard == NULL || self == NULL || player == NULL)
+		return 0;
+
+	const int distance = NitemareGuardRoundedDistance(self, player);
+	const int seed = distance > 0 ? 100 / distance : 100;
+	const int randomValue = pr_nitemareguardai();
+
+	switch(guard->n3dObjectClass)
+	{
+		case 0x08: return randomValue & 0x07;
+		case 0x09:
+		case 0x0A: return randomValue & 0x0F;
+		case 0x0B: return seed / 4;
+		case 0x0C:
+		case 0x1D:
+		case 0x1E: return seed;
+		case 0x11:
+		case 0x12:
+		case 0x13:
+		case 0x14: return randomValue & 0x1F;
+		case 0x16:
+			// 0x7E52/0x51A6 gate is not yet represented in ECWolf.
+			// Use the recovered non-gated branch until that global is wired.
+			return 0x21;
+		case 0x19: return 100;
+		default: return seed / 2;
+	}
+}
+
+static void NitemareGuardEnterState13(ANitemareGuard *guard)
+{
+	guard->n3dTimer = static_cast<WORD>((pr_nitemareguardai() % 0x50) + 8);
+	guard->n3dCurrentState = 0x13;
+	switch(guard->n3dOctant & 7)
+	{
+		case 0:
+		case 7: guard->n3dMoveX = 0; guard->n3dMoveY = -8; break;
+		case 1:
+		case 2: guard->n3dMoveX = 8; guard->n3dMoveY = 0; break;
+		case 3:
+		case 4: guard->n3dMoveX = 0; guard->n3dMoveY = 8; break;
+		default: guard->n3dMoveX = -8; guard->n3dMoveY = 0; break;
+	}
+}
+
+static void NitemareGuardTickState13(
+	ANitemareGuard *guard, AActor *self, AActor *player)
+{
+	if(guard->n3dTimer == 0)
+	{
+		guard->n3dStrategy = 0;
+		guard->n3dCurrentState = 0x02;
+		return;
+	}
+
+	--guard->n3dTimer;
+	if(guard->n3dTimer < 8)
+		NitemareGuardTryMove(guard, self, player);
+}
+
+ACTION_FUNCTION(A_NitemareGuardThink)
+{
+	if(!self->IsKindOf(NATIVE_CLASS(NitemareGuard)) || self->health <= 0)
+		return true;
+
+	ANitemareGuard *guard = static_cast<ANitemareGuard *>(self);
+	AActor *player = NitemareGuardPlayerTarget(self);
+	if(player == NULL)
+		return true;
+	self->target = player;
+
+	// Special scripted state families are kept separate until their own
+	// recovered runtime is installed.
+	if(guard->n3dStrategy == 4 ||
+		guard->n3dCurrentState == 0x0A ||
+		guard->n3dCurrentState == 0x0B ||
+		guard->n3dCurrentState == 0x0C ||
+		guard->n3dCurrentState == 0x0D ||
+		guard->n3dCurrentState == 0x0E ||
+		guard->n3dCurrentState == 0x0F ||
+		guard->n3dCurrentState == 0x10 ||
+		guard->n3dCurrentState == 0x11 ||
+		guard->n3dCurrentState == 0x14)
+	{
+		return true;
+	}
+
+	switch(guard->n3dCurrentState)
+	{
+		case 0x01:
+			if(guard->n3dTimer > 0)
+				--guard->n3dTimer;
+			if(guard->n3dTimer == 0)
+				guard->n3dCurrentState = 0x02;
+			break;
+
+		case 0x02:
+			// Sequence +0x34 and alert SFX are separate SEQDEF/SND layers.
+			guard->n3dCurrentState = 0x03;
+			break;
+
+		case 0x03:
+			if(NitemareGuardEvaluateAttackGate(guard, self, player))
+			{
+				guard->n3dCurrentState = 0x04;
+			}
+			else if(guard->n3dStrategy == 0)
+			{
+				NitemareGuardPlanStrategy0(guard, self, player);
+				NitemareGuardTryMove(guard, self, player);
+			}
+			break;
+
+		case 0x04:
+			if(NitemareGuardEvaluateAttackGate(guard, self, player) &&
+				player->player != NULL)
+			{
+				const int damage = NitemareGuardContactDamage(guard, self, player);
+				player->player->TakeDamage(damage, self);
+				if(player->health <= 0)
+				{
+					guard->n3dCurrentState = 0x0B;
+					break;
+				}
+			}
+			guard->n3dCurrentState = 0x05;
+			break;
+
+		case 0x05:
+			if(guard->n3dStrategy == 0)
+			{
+				NitemareGuardPlanStrategy0(guard, self, player);
+				NitemareGuardTryMove(guard, self, player);
+			}
+			break;
+
+		case 0x06:
+			NitemareGuardTryMove(guard, self, player);
+			if(guard->n3dTimer > 0)
+				--guard->n3dTimer;
+			if(guard->n3dTimer == 0)
+				guard->n3dCurrentState = 0x03;
+			break;
+
+		case 0x07:
+		{
+			const bool perceived =
+				NitemareGuardEvaluatePerception(guard, self, player, false, false);
+			if(perceived)
+			{
+				if(guard->n3dStrategy == 3)
+					NitemareGuardEnterState13(guard);
+				else
+					guard->n3dCurrentState = 0x02;
+			}
+			break;
+		}
+
+		case 0x08:
+			NitemareGuardTryMove(guard, self, player);
+			if(guard->n3dNextState == 0x02 &&
+				NitemareGuardEvaluatePerception(guard, self, player, false, false))
+			{
+				guard->n3dCurrentState = 0x02;
+			}
+			break;
+
+		case 0x13:
+			NitemareGuardTickState13(guard, self, player);
+			break;
+
+		default:
+			break;
+	}
+
+	return true;
+}
+
 static FRandom pr_damagemobj("ActorTakeDamage");
 static int NitemareGuardKillScore(int objectClass)
 {
