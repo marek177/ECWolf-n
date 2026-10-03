@@ -782,6 +782,7 @@ static bool BuildDefinitionXlat(FileReader *reader, int episode, bool walls, FSt
 						const bool pentagramInventory = objectClass == 0x3C;
 						const bool healthPickup = objectClass == 0x33;
 						const bool ammoPickup = objectClass == 0x39;
+						const bool mapPowerPickup = objectClass == 0x3A || objectClass == 0x3B;
 
 						FString parent;
 						FString properties;
@@ -816,9 +817,14 @@ static bool BuildDefinitionXlat(FileReader *reader, int episode, bool walls, FSt
 							else if(id == 0x2B)
 								parent = " : NitemareWandAmmo";
 						}
+						else if(mapPowerPickup)
+						{
+							parent = objectClass == 0x3A ?
+								" : NitemareCrystalCharge" : " : NitemareMagicEyeCharge";
+						}
 
 						const bool inventory = keyInventory || pentagramInventory ||
-							healthPickup || (ammoPickup && !parent.IsEmpty());
+							healthPickup || (ammoPickup && !parent.IsEmpty()) || mapPowerPickup;
 						if(!inventory)
 							properties += "\tradius 32\n";
 
