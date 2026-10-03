@@ -840,6 +840,11 @@ static bool BuildDefinitionXlat(FileReader *reader, int episode, bool walls, FSt
 							properties += "\tradius 32\n";
 
 						FString actor;
+						const bool hideTerminalGuard =
+							objectClass == 0x09 || objectClass == 0x0A ||
+							objectClass == 0x12 || objectClass == 0x13 ||
+							objectClass == 0x1A || objectClass == 0x1E ||
+							objectClass == 0x1F;
 						if(guardActor)
 						{
 							actor.Format(
@@ -865,7 +870,8 @@ static bool BuildDefinitionXlat(FileReader *reader, int episode, bool walls, FSt
 								actorName.GetChars(), parent.GetChars(),
 								properties.GetChars(), objectClass,
 								sprite.GetChars(), sprite.GetChars(),
-								sprite.GetChars(), sprite.GetChars());
+								sprite.GetChars(),
+								hideTerminalGuard ? "TNT1" : sprite.GetChars());
 						}
 						else
 						{
