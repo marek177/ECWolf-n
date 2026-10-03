@@ -382,12 +382,39 @@ void T_Projectile (AActor *self)
 			{
 				fixed deltax = abs(self->x - check->x);
 				fixed deltay = abs(self->y - check->y);
-				fixed radius = check->radius + self->radius;
-				if(deltax < radius && deltay < radius)
+				const bool nitemareProjectile = NitemareIsPlayerProjectile(self);
+				const int nitemareGuardClass =
+					nitemareProjectile ? NitemareProjectileGuardClassCode(check) : -1;
+
+				bool intersects;
+				if(nitemareProjectile && nitemareGuardClass >= 0)
+				{
+					const fixed tolerance = (9 * FRACUNIT) / 64;
+					intersects = deltax <= tolerance && deltay <= tolerance;
+				}
+				else
+				{
+					const fixed radius = check->radius + self->radius;
+					intersects = deltax < radius && deltay < radius;
+				}
+
+				if(intersects)
 				{
 					lastHit = check;
 					if(check->flags & FL_SHOOTABLE)
 					{
+						if(nitemareProjectile && nitemareGuardClass >= 0)
+						{
+							const int weaponSelector = NitemareProjectileWeaponSelector(self);
+							const int rawDamage = 1 + (pr_nitemareprojectile() % 64);
+							const int damage = NitemareProjectileDamageTransform(
+								rawDamage, nitemareGuardClass, weaponSelector);
+							NitemareApplyProjectileGuardDamage(check, self->target, damage);
+
+							T_ExplodeProjectile(self, check);
+							return;
+						}
+
 						DamageActor(check, self->target, self->GetDamage());
 
 						if(!(self->flags & FL_RIPPER) || (check->flags & FL_DONTRIP))
@@ -396,7 +423,6 @@ void T_Projectile (AActor *self)
 							return;
 						}
 					}
-					// Eventually this will need an actual height check.
 					else if(check->projectilepassheight != 0)
 					{
 						T_ExplodeProjectile(self, check);
