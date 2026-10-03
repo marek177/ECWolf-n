@@ -778,6 +778,7 @@ static bool BuildDefinitionXlat(FileReader *reader, int episode, bool walls, FSt
 						FString sprite;
 						sprite.Format("N%d%02X", episode, id);
 
+						const bool guardActor = objectClass >= 0x08 && objectClass <= 0x21;
 						const bool keyInventory = objectClass == 0x2F || objectClass == 0x30;
 						const bool pentagramInventory = objectClass == 0x3C;
 						const bool healthPickup = objectClass == 0x33;
@@ -787,7 +788,11 @@ static bool BuildDefinitionXlat(FileReader *reader, int episode, bool walls, FSt
 
 						FString parent;
 						FString properties;
-						if(keyInventory)
+						if(guardActor)
+						{
+							parent.Format(" : NitemareGuardClass%02X", objectClass);
+						}
+						else if(keyInventory)
 						{
 							parent = " : Key";
 							properties = "\t+INVENTORY.ALWAYSPICKUP\n";
@@ -831,7 +836,7 @@ static bool BuildDefinitionXlat(FileReader *reader, int episode, bool walls, FSt
 						const bool inventory = keyInventory || pentagramInventory ||
 							healthPickup || weaponPickup ||
 							(ammoPickup && !parent.IsEmpty()) || mapPowerPickup;
-						if(!inventory)
+						if(!inventory && !guardActor)
 							properties += "\tradius 32\n";
 
 						FString actor;

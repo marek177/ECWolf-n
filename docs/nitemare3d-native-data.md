@@ -136,6 +136,62 @@ trailer. The loader exposes:
 This prepares native palette selection without baking a palette into IMG
 conversion.
 
+## Silver Pistol multi-target hitscan
+
+Selector 2 now uses a Nitemare-specific hitscan action instead of ECWolf's
+closest-target `A_GunAttack`.
+
+The targeting path reproduces the important recovered invariants:
+
+- one accepted shot consumes one Silver round,
+- every shootable candidate is examined; the loop does not stop after the
+  first accepted target,
+- candidates must be admitted by the same current-map visibility rule used by
+  the ECWolf sprite renderer,
+- actor projection is refreshed for the shot,
+- the projected sprite bounds must cross the viewport center after a 4-pixel
+  horizontal expansion,
+- the map/object LOS path is limited to 16 tile steps,
+- normal ECWolf wall/door LOS must pass,
+- intermediate `+SOLID` actor cells reject the shot, standing in for the
+  original object-plane blocking test.
+
+Generated GUARD1..GUARD26 actors now inherit from explicit runtime-class bases
+`NitemareGuardClass08..NitemareGuardClass21`. This gives combat code a stable
+link to the recovered OBJECT class without inferring it from a sprite name or
+raw object ID. The bases use the recovered fresh GUARD strength of 255.
+
+The verified Silver-Pistol resistance matrix is applied before HP subtraction.
+Examples include:
+
+- Baddie #1/#2: /256,
+- Vampira, Dracula phases: /2,
+- Gargoyles: /4,
+- Trashcan robot: /16,
+- Penelope and Cannon: zero normal weapon damage,
+- Ghost: zero Silver damage,
+- Goldie/Greenie: /2.
+
+Hamerstein remains zero in this layer until the recovered 0x7E52 vulnerability
+gate has a corresponding ECWolf level/script state; the engine does not invent
+an Episode-3-only shortcut.
+
+Nitemare MAPINFO difficulty factors now preserve the opposing original trends:
+
+- Easy: enemy->player x0.5, player->enemy x2,
+- Normal: x1 / x1,
+- Hard: enemy->player x2, player->enemy x0.5.
+
+### Remaining fidelity boundary
+
+The candidate/LOS/resistance behavior is substantially closer to the original,
+but the **raw damage producer is still bootstrap**. The current action generates
+a generic positive base before the verified class transform. The original uses
+the target's cached projected OBJECT+0x18 value relative to the view reference,
+then adds random()%25. That projected-row producer, state 00/09/0A exclusion,
+pain/death sequence state machine and Hamerstein special gate remain the next
+combat-runtime layer.
+
 ## Eight-slot player projectile gate
 
 Projectile-mode weapons now pass through native action

@@ -17,6 +17,7 @@
 #include "a_inventory.h"
 #include "a_keys.h"
 #include "m_random.h"
+#include "r_sprites.h"
 #include "g_mapinfo.h"
 #include "thinker.h"
 #include "wl_draw.h"
@@ -1255,6 +1256,241 @@ ACTION_FUNCTION(A_CustomPunch)
 }
 
 static FRandom pr_cwbullet("CustomWpBullet");
+static bool NitemareActorIsRendererVisible(AActor *actor)
+{
+	if(actor == NULL || map == NULL)
+		return false;
+
+	MapSpot spot = map->GetSpot(actor->tilex, actor->tiley, 0);
+	if(spot == NULL)
+		return false;
+	if(spot->visible)
+		return true;
+
+	MapSpot east = spot->GetAdjacent(MapTile::East);
+	MapSpot north = spot->GetAdjacent(MapTile::North);
+	MapSpot west = spot->GetAdjacent(MapTile::West);
+	MapSpot south = spot->GetAdjacent(MapTile::South);
+
+	MapSpot neighbors[8] =
+	{
+		east,
+		east ? east->GetAdjacent(MapTile::North) : NULL,
+		north,
+		north ? north->GetAdjacent(MapTile::West) : NULL,
+		west,
+		west ? west->GetAdjacent(MapTile::South) : NULL,
+		south,
+		south ? south->GetAdjacent(MapTile::East) : NULL
+	};
+
+	for(unsigned int i = 0; i < 8; ++i)
+	{
+		if(neighbors[i] != NULL && neighbors[i]->visible && neighbors[i]->tile == NULL)
+			return true;
+	}
+	return false;
+}
+
+static bool NitemareSilverPathClear(AActor *source, AActor *target)
+{
+	if(source == NULL || target == NULL)
+		return false;
+
+	if(!CheckLine(target, source))
+		return false;
+
+	int x = source->tilex;
+	int y = source->tiley;
+	const int targetX = target->tilex;
+	const int targetY = target->tiley;
+	const int dx = abs(targetX - x);
+	const int dy = abs(targetY - y);
+	const int sx = x < targetX ? 1 : -1;
+	const int sy = y < targetY ? 1 : -1;
+	int err = dx - dy;
+	int steps = 0;
+
+	while(x != targetX || y != targetY)
+	{
+		const int twiceError = err * 2;
+		if(twiceError > -dy)
+		{
+			err -= dy;
+			x += sx;
+		}
+		if(twiceError < dx)
+		{
+			err += dx;
+			y += sy;
+		}
+
+		if(++steps > 16)
+			return false;
+		if(x == targetX && y == targetY)
+			break;
+
+		for(AActor::Iterator blocker = AActor::GetIterator(); blocker.Next();)
+		{
+			if(blocker != source && blocker != target &&
+				(blocker->flags & FL_SOLID) &&
+				blocker->tilex == x && blocker->tiley == y)
+			{
+				return false;
+			}
+		}
+	}
+
+	return true;
+}
+
+static int NitemareGuardClassCode(AActor *actor)
+{
+	if(actor == NULL)
+		return -1;
+
+	static const ClassDef *guardClasses[0x22] = {NULL};
+	static bool initialized = false;
+	if(!initialized)
+	{
+		for(unsigned int objectClass = 0x08; objectClass <= 0x21; ++objectClass)
+		{
+			FString name;
+			name.Format("NitemareGuardClass%02X", objectClass);
+			guardClasses[objectClass] = ClassDef::FindClass(name.GetChars());
+		}
+		initialized = true;
+	}
+
+	const ClassDef *actual = actor->GetClass();
+	for(unsigned int objectClass = 0x08; objectClass <= 0x21; ++objectClass)
+	{
+		const ClassDef *base = guardClasses[objectClass];
+		if(base != NULL && (actual == base || actual->IsDescendantOf(base)))
+			return static_cast<int>(objectClass);
+	}
+	return -1;
+}
+
+static int NitemareSilverDamageTransform(int rawDamage, int objectClass)
+{
+	if(rawDamage <= 0)
+		return 0;
+
+	switch(objectClass)
+	{
+		case 0x0C:
+		case 0x0D:
+		case 0x1D:
+		case 0x1E:
+			return rawDamage / 8;
+
+		case 0x0E:
+		case 0x11:
+		case 0x14:
+		case 0x1B:
+		case 0x1C:
+			return rawDamage / 2;
+
+		case 0x12:
+		case 0x13:
+		case 0x17:
+		case 0x1F:
+			return rawDamage / 4;
+
+		case 0x18:
+			return rawDamage / 16;
+
+		case 0x0F:
+		case 0x10:
+			return rawDamage / 256;
+
+		case 0x15: // Penelope special path.
+		case 0x19: // Cannon ignores ordinary player weapon damage.
+		case 0x1A: // Ghost is vulnerable only to Magic Wand.
+			return 0;
+
+		case 0x16:
+			// Hamerstein uses the separate 0x7E52 gate and literal base 3.
+			// Until that script state exists in ECWolf, do not invent damage.
+			return 0;
+
+		default:
+			return rawDamage;
+	}
+}
+
+static void NitemareApplyGuardDamage(AActor *target, AActor *attacker, int damage)
+{
+	if(target == NULL || damage <= 0)
+		return;
+
+	damage = FixedMul(damage, gamestate.difficulty->PlayerDamageFactor);
+	if(damage <= 0)
+		return;
+
+	target->health -= damage;
+	if(attacker != NULL && attacker->player)
+		target->target = attacker;
+
+	if(target->health <= 0)
+	{
+		if(attacker != NULL)
+		{
+			target->killerx = attacker->x;
+			target->killery = attacker->y;
+		}
+		target->Die();
+	}
+}
+
+static FRandom pr_nitemarepistol("NitemareSilverPistol");
+
+ACTION_FUNCTION(A_NitemareSilverHitscan)
+{
+	ACTION_PARAM_INT(maxdamage, 0);
+
+	if(!self->player || self->player->ReadyWeapon == NULL)
+		return false;
+	if(maxdamage <= 0)
+		maxdamage = 64;
+
+	if(!self->player->ReadyWeapon->DepleteAmmo())
+		return false;
+
+	if(!(self->player->ReadyWeapon->weaponFlags & WF_NOALERT))
+		madenoise = true;
+
+	for(AActor::Iterator check = AActor::GetIterator(); check.Next();)
+	{
+		if(check == self || !(check->flags & FL_SHOOTABLE) ||
+			(check->player && !Net::FriendlyFire()))
+		{
+			continue;
+		}
+
+		if(!NitemareActorIsRendererVisible(check))
+			continue;
+
+		TransformActor(check);
+		if(check->viewheight == 0 || !R_ActorCrossesAimCenter(check, 4))
+			continue;
+
+		if(!NitemareSilverPathClear(self, check))
+			continue;
+
+		const int guardClass = NitemareGuardClassCode(check);
+		const int rawDamage = 1 + (pr_nitemarepistol() % maxdamage);
+		if(guardClass >= 0)
+			NitemareApplyGuardDamage(
+				check, self, NitemareSilverDamageTransform(rawDamage, guardClass));
+		else
+			DamageActor(check, self, rawDamage);
+	}
+
+	return true;
+}
+
 ACTION_FUNCTION(A_GunAttack)
 {
 	enum

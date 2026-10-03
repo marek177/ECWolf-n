@@ -1,0 +1,33 @@
+actor NitemareGuardBase
+{
+	health 255
+	radius 32
+	+SHOOTABLE
+}
+
+actor NitemareGuardClass08 : NitemareGuardBase {}
+actor NitemareGuardClass09 : NitemareGuardBase {}
+actor NitemareGuardClass0A : NitemareGuardBase {}
+actor NitemareGuardClass0B : NitemareGuardBase {}
+actor NitemareGuardClass0C : NitemareGuardBase {}
+actor NitemareGuardClass0D : NitemareGuardBase {}
+actor NitemareGuardClass0E : NitemareGuardBase {}
+actor NitemareGuardClass0F : NitemareGuardBase {}
+actor NitemareGuardClass10 : NitemareGuardBase {}
+actor NitemareGuardClass11 : NitemareGuardBase {}
+actor NitemareGuardClass12 : NitemareGuardBase {}
+actor NitemareGuardClass13 : NitemareGuardBase {}
+actor NitemareGuardClass14 : NitemareGuardBase {}
+actor NitemareGuardClass15 : NitemareGuardBase {}
+actor NitemareGuardClass16 : NitemareGuardBase {}
+actor NitemareGuardClass17 : NitemareGuardBase {}
+actor NitemareGuardClass18 : NitemareGuardBase {}
+actor NitemareGuardClass19 : NitemareGuardBase {}
+actor NitemareGuardClass1A : NitemareGuardBase {}
+actor NitemareGuardClass1B : NitemareGuardBase {}
+actor NitemareGuardClass1C : NitemareGuardBase {}
+actor NitemareGuardClass1D : NitemareGuardBase {}
+actor NitemareGuardClass1E : NitemareGuardBase {}
+actor NitemareGuardClass1F : NitemareGuardBase {}
+actor NitemareGuardClass20 : NitemareGuardBase {}
+actor NitemareGuardClass21 : NitemareGuardBase {}

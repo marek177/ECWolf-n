@@ -3,6 +3,8 @@
 
 #include "tmemory.h"
 
+class AActor;
+
 /*
 =============================================================================
 
@@ -32,6 +34,7 @@ extern  fixed   viewsin,viewcos;
 
 void    ThreeDStartFadeIn ();
 void    ThreeDRefresh (void);
+void    TransformActor (AActor *ob);
 
 typedef struct
 {
