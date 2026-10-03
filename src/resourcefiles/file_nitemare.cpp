@@ -644,6 +644,7 @@ static bool BuildDefinitionXlat(FileReader *reader, int episode, bool walls, FSt
 							"{\n"
 							"%s"
 							"%s"
+							"%s"
 							"\tstates\n"
 							"\t{\n"
 							"\t\tSpawn:\n"
@@ -654,6 +655,7 @@ static bool BuildDefinitionXlat(FileReader *reader, int episode, bool walls, FSt
 							actorName.GetChars(),
 							keyInventory ? " : Key" : pentagramInventory ? " : Inventory" : "",
 							inventory ? "\t+INVENTORY.ALWAYSPICKUP\n" : "\tradius 32\n",
+							pentagramInventory ? "\tinventory.interhubamount 1\n" : "",
 							(objectClass >= 0x08 && objectClass <= 0x2D) ? "\t+SOLID\n" : "",
 							sprite.GetChars());
 						*decorate += actor;
