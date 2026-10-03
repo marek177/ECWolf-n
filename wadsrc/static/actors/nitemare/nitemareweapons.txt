@@ -8,7 +8,9 @@
 //
 // The current projectile velocity and damage presentation are intentionally
 // bootstrap values. Exact Nitemare DDA/projected-damage behavior is a later
-// native combat layer.
+// native combat layer. ECWolf DECORATE accepts only half-tic fractions, so
+// the recovered nominal 8 Hz attempt periods are represented by the nearest
+// legal frame durations: 9 / 4.5 / 13 / 4.5.
 
 actor NitemarePlasmaShot
 {
@@ -74,7 +76,7 @@ actor NitemareSinglePlasma : NitemareWeapon
 			loop
 		Fire:
 			TNT1 A 0 A_FireCustomMissile("NitemarePlasmaShot", 0, true)
-			TNT1 A 8.75
+			TNT1 A 9
 			goto Ready
 	}
 }
@@ -92,7 +94,7 @@ actor NitemareMagicWand : NitemareWeapon
 			loop
 		Fire:
 			TNT1 A 0 A_FireCustomMissile("NitemareWandShot", 0, true)
-			TNT1 A 4.375
+			TNT1 A 4.5
 			goto Ready
 	}
 }
@@ -110,7 +112,7 @@ actor NitemareSilverPistol : NitemareWeapon
 			loop
 		Fire:
 			TNT1 A 0 A_GunAttack
-			TNT1 A 13.125
+			TNT1 A 13
 			goto Ready
 	}
 }
@@ -127,11 +129,11 @@ actor NitemareMultiPlasma : NitemareWeapon
 			loop
 		Fire:
 			TNT1 A 0 A_FireCustomMissile("NitemarePlasmaShot", 0, true)
-			TNT1 A 4.375 A_ReFire
+			TNT1 A 4.5 A_ReFire
 			goto Ready
 		Hold:
 			TNT1 A 0 A_FireCustomMissile("NitemarePlasmaShot", 0, true)
-			TNT1 A 4.375 A_ReFire
+			TNT1 A 4.5 A_ReFire
 			goto Ready
 	}
 }
