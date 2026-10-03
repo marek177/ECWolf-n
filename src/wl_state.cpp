@@ -799,7 +799,10 @@ int NitemareGuardClassCode(AActor *ob)
 int NitemareTransformGuardDamage(int rawDamage, int objectClass, int weaponSelector)
 {
 	if(rawDamage <= 0)
-		return 0;
+		return rawDamage;
+
+	const bool wand = weaponSelector == 1;
+	const bool silver = weaponSelector == 2;
 
 	switch(objectClass)
 	{
@@ -808,55 +811,50 @@ int NitemareTransformGuardDamage(int rawDamage, int objectClass, int weaponSelec
 			return rawDamage >> 3;
 
 		case 0x0D:
-			return (weaponSelector == 1 || weaponSelector == 2) ?
-				rawDamage >> 1 : rawDamage >> 3;
+			return wand ? rawDamage >> 1 : rawDamage >> 3;
 
 		case 0x0E:
 		case 0x11:
 		case 0x14:
-			return weaponSelector == 2 ? rawDamage >> 1 : rawDamage >> 3;
+			return (wand || silver) ? rawDamage >> 1 : rawDamage >> 3;
 
 		case 0x0F:
 		case 0x10:
-			return weaponSelector == 1 ? 0 : rawDamage >> 1;
+			return wand ? rawDamage >> 1 : rawDamage >> 8;
 
 		case 0x12:
 		case 0x13:
-			return weaponSelector == 1 ? 0 : rawDamage >> 2;
+			return rawDamage >> 2;
 
 		case 0x15:
-			// Penelope side-effect path; ordinary weapon damage is zero.
-			return 0;
-
-		case 0x16:
-			// Dr. Hamerstein uses a fixed base 3 only for episode selector 3.
-			return gamestate.mapname[0] == 'N' &&
-				gamestate.mapname[1] == '3' &&
-				gamestate.mapname[2] == 'M' ? 3 : 0;
-
-		case 0x17:
-			return weaponSelector == 1 ? rawDamage >> 8 : rawDamage >> 2;
-
-		case 0x18:
-			if(weaponSelector == 1) return rawDamage >> 8;
-			if(weaponSelector == 2) return rawDamage >> 4;
-			return rawDamage >> 3;
-
 		case 0x19:
 			return 0;
 
+		case 0x16:
+			// The original requires the independent Hamerstein gate value 3
+			// (0x7E52 in the audited Win16 runtime). Do not substitute episode.
+			return 0;
+
+		case 0x17:
+			return wand ? rawDamage >> 8 : rawDamage >> 2;
+
+		case 0x18:
+			if(wand) return rawDamage >> 8;
+			if(silver) return rawDamage >> 4;
+			return rawDamage >> 3;
+
 		case 0x1A:
-			return weaponSelector == 1 ? rawDamage >> 1 : 0;
+			return wand ? rawDamage >> 1 : 0;
 
 		case 0x1B:
 		case 0x1C:
 			return rawDamage >> 1;
 
 		case 0x1E:
-			return weaponSelector == 1 ? 0 : rawDamage >> 3;
+			return wand ? 0 : rawDamage >> 3;
 
 		case 0x1F:
-			return weaponSelector == 1 ? 0 : rawDamage >> 2;
+			return wand ? 0 : rawDamage >> 2;
 
 		default:
 			return rawDamage;
