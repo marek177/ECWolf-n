@@ -1213,6 +1213,96 @@ int NitemareFloorChoice(int currentFloor, const bool *enabled, int floorCount)
 	}
 }
 
+int NitemareRemoteChoice(bool doorsOpen, bool cannonsEnabled)
+{
+	static const char * const labels[5] = {
+		"Open remote doors",
+		"Close remote doors",
+		"Enable remote cannons",
+		"Disable remote cannons",
+		"Cancel"
+	};
+	bool enabled[5] = {
+		!doorsOpen,
+		doorsOpen,
+		!cannonsEnabled,
+		cannonsEnabled,
+		true
+	};
+
+	int selected = 0;
+	while(selected < 5 && !enabled[selected])
+		++selected;
+	if(selected >= 5)
+		selected = 4;
+
+	dirtype lastDirection = dir_None;
+	IN_ClearKeysDown();
+	WaitKeyUp();
+
+	for(;;)
+	{
+		FString prompt("Remote control:\n\n");
+		for(int i = 0; i < 5; ++i)
+		{
+			prompt += i == selected ? "> " : "  ";
+			prompt += labels[i];
+			if(!enabled[i])
+				prompt += " [disabled]";
+			if(i != 4)
+				prompt += "\n";
+		}
+		Message(prompt.GetChars());
+
+		ControlInfo ci;
+		ReadAnyControl(&ci);
+		if(ci.dir != lastDirection)
+		{
+			int step = 0;
+			if(ci.dir == dir_North || ci.dir == dir_West)
+				step = -1;
+			else if(ci.dir == dir_South || ci.dir == dir_East)
+				step = 1;
+
+			if(step != 0)
+			{
+				int candidate = selected;
+				for(int tries = 0; tries < 5; ++tries)
+				{
+					candidate = (candidate + step + 5) % 5;
+					if(enabled[candidate])
+					{
+						selected = candidate;
+						SD_PlaySound("menu/move1");
+						break;
+					}
+				}
+			}
+		}
+
+		if(Keyboard[sc_Return] || Keyboard[sc_Space] || ci.button0)
+		{
+			SD_PlaySound("menu/activate");
+			IN_ClearKeysDown();
+			WaitKeyUp();
+			DrawPlayScreen();
+			return selected;
+		}
+
+		if(Keyboard[sc_Escape] || ci.button1)
+		{
+			SD_PlaySound("menu/escape");
+			IN_ClearKeysDown();
+			WaitKeyUp();
+			DrawPlayScreen();
+			return 4;
+		}
+
+		lastDirection = ci.dir;
+		SDL_Delay(5);
+	}
+}
+
 void NitemareNotice(const char *text)
 {
 	Message(text);
