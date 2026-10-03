@@ -868,18 +868,18 @@ void NitemareDamageGuard(AActor *ob, AActor *attacker, unsigned damage)
 	if(ob == NULL || damage == 0 || ob->health <= 0)
 		return;
 
+	const int objectClass = NitemareGuardClassCode(ob);
+	if(objectClass < 0)
+	{
+		DamageActor(ob, attacker, damage);
+		return;
+	}
+
 	int scaled = FixedMul(static_cast<int>(damage), gamestate.difficulty->PlayerDamageFactor);
 	if(scaled <= 0)
 		return;
 	if(scaled > 255)
 		scaled = 255;
-
-	const int objectClass = NitemareGuardClassCode(ob);
-	if(objectClass < 0)
-	{
-		DamageActor(ob, attacker, static_cast<unsigned int>(scaled));
-		return;
-	}
 
 	if(attacker != NULL && attacker->player)
 		ob->target = attacker;
@@ -888,6 +888,11 @@ void NitemareDamageGuard(AActor *ob, AActor *attacker, unsigned damage)
 	{
 		ob->health = 0;
 		ob->flags &= ~FL_SHOOTABLE;
+		if(attacker != NULL)
+		{
+			ob->killerx = attacker->x;
+			ob->killery = attacker->y;
+		}
 
 		if(attacker != NULL && attacker->player)
 			attacker->player->GivePoints(NitemareGuardKillScore(objectClass));
