@@ -1,0 +1,35 @@
+actor NitemareSilverAmmo : Ammo
+{
+	inventory.amount 20
+	inventory.maxamount 100
+	states
+	{
+		Spawn:
+			TNT1 A -1
+			stop
+	}
+}
+
+actor NitemarePlasmaAmmo : Ammo
+{
+	inventory.amount 20
+	inventory.maxamount 100
+	states
+	{
+		Spawn:
+			TNT1 A -1
+			stop
+	}
+}
+
+actor NitemareWandAmmo : Ammo
+{
+	inventory.amount 20
+	inventory.maxamount 100
+	states
+	{
+		Spawn:
+			TNT1 A -1
+			stop
+	}
+}
