@@ -472,7 +472,11 @@ static void LookForNitemareData(TArray<WadStuff> &iwads, const char *directory)
 		AddNitemareBundleFile(dir, OptionalFiles[i], wad, false);
 
 	if(CheckData(wad) >= 0 && CheckIWadNotYetFound(iwads, wad.Type))
+	{
+		Printf("Nitemare 3D: episode filenames do not verify distribution provenance. "
+			"Check this bundle with tools/nitemare_bundle.py and a trusted manifest.\n");
 		iwads.Push(wad);
+	}
 }
 
 /**

@@ -199,3 +199,81 @@ The next step toward a playable Nitemare 3D game definition is:
 
 This resource layer is intentionally usable before those gameplay semantics are
 complete.
+
+## DOS/Windows compatibility audit (18 October 2026)
+
+Audited baseline: PR #6 head `c6662da749477798a2ae30a05cabc362e459274e`.
+Evidence: [RE v0.41 section 9](https://github.com/marek177/Nitemare3d-reversed/blob/main/docs/V041_REMAX_LATEST_STATIC_CONSOLIDATION.md).
+This is a source audit; original commercial archives were not available in this
+checkout and were not added or executed.
+
+| Status | Finding | Scope |
+| --- | --- | --- |
+| Confirmed in v0.41 report | E1M1 OBJECT differs in 20 bytes; 33 DOS / 39 Windows initial GUARD placements | Only the report's fingerprinted `nitemare.zip` pair; not a detector for all DOS/Windows versions |
+| Confirmed in v0.41 report | Audited IMG alias partitions match despite absolute offset differences | Six audited banks; not proof that arbitrary IMG files are interchangeable |
+| Confirmed in code | MAP conversion copies each wall/object byte to its original cell in separate 16-bit planes | `FNitemareMapLump::FillCache`, shared `NitemareLayout::ExpandCells`; no hardcoded enemy count or sorting |
+| Confirmed in code | IMG aliases resolve ID directory offsets against that IMG's physical frame boundaries | `OpenImg`, shared `FindFrame`; physical frame ordinals are local, not universal IDs |
+| Confirmed in code | Bundle discovery gathers twelve named files from one directory; translators include their matching episode | `LookForNitemareData`, `BuildDefinitionXlat`, episode MAPINFO |
+| Unknown | Arbitrarily selected MAP/IMG/definition files share historical distribution provenance | Names, valid structure, same directory and alias topology cannot establish this |
+
+The retained OBJECT plane preserves the differing E1M1 placements as input data.
+**The current bootstrap only translates player starts, not GUARD actors.** This
+change therefore does not claim 33/39 enemies spawn in playable ECWolf gameplay.
+It also does not claim original constructor ordering, enemy runtime, sequence
+bank semantics or parity. Object classifications still need executable evidence.
+Physical frame `NxI####` names are enumeration aids; game definitions must use
+local ID aliases and must not transplant physical ordinals between distributions.
+
+### Exact bundle compatibility check
+
+Use `tools/nitemare_bundle.py` before starting the engine. It binds MAP, IMG,
+WALLS and OBJECTS for **all three episodes together**, including present optional
+files, by filename role, byte length and SHA-256. A changed MAP with unchanged
+IMG is rejected just as a changed IMG, changed catalog or swapped episode is.
+Case-insensitive duplicate names and missing required roles are rejected.
+There is no shipped allowlist of historical hashes: the v0.41 summary alone does
+not provide enough information to construct one reliably.
+
+After independently verifying the origin of a complete local distribution:
+
+```
+python3 tools/nitemare_bundle.py /path/to/data --snapshot /path/to/dos-reference.json --label "independently verified source and version"
+```
+
+Keep separate reference manifests for each verified distribution. Snapshot is an
+explicit attestation of the selected bytes, **not automatic DOS/Windows detection**.
+It refuses to overwrite an existing manifest. To check a later installation:
+
+```
+python3 tools/nitemare_bundle.py /path/to/data --verify /path/to/dos-reference.json
+```
+
+Use the successful exit status as a launch prerequisite, and launch ECWolf with
+that same data directory. Do not regenerate a reference merely to silence a
+mismatch. Manifests contain hashes and sizes, no original asset bytes. Labels are
+informational and cannot override mismatching hashes. Optional-file additions or
+removals also require deliberate review of the reference.
+
+**Enforcement boundary:** this is an explicit preflight tool, not an in-engine
+manifest verifier. Direct engine startup still permits unverified installations
+and now prints a provenance warning during native bundle discovery. Overrides or
+mods loaded after verification are outside this check, and concurrent file edits
+between verification and engine load are not prevented. Unknown historical sets
+must remain described as unverified rather than being rejected based on the
+33/39 count or accepted based on matching alias partitions.
+
+### Regressions without original assets
+
+`tests/nitemare_layout_test.cpp` exercises the same map expansion and exact
+boundary lookup helpers used by the engine: all 256 byte values, original cell
+order, zero extension, a synthetic 20-byte OBJECT-only difference, counts 0..120
+(including 33 and 39), shifted physical offsets and repeated/reordered aliases.
+Synthetic IDs are not claims about historical GUARD classes or coordinates.
+`tests/test_nitemare_bundle.py` tests all twelve bound roles, episode swaps,
+missing files, incomplete manifests, case collisions and optional changes.
+The GitHub Actions workflow runs both without commercial assets.
+
+Local validation: standalone C++98 regression and six Python unittest cases pass;
+`git diff --check` passes. Full engine configuration/build was not run because
+`cmake` is unavailable in the execution environment. These tests verify input
+preservation and reference-set checking, not a real-data or gameplay parity run.
