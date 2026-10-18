@@ -10,6 +10,7 @@
 */
 
 #include <cstring>
+#include "nitemare_layout.h"
 
 #include "m_swap.h"
 #include "resourcefile.h"
@@ -310,11 +311,7 @@ protected:
 		BYTE *wallPlane = reinterpret_cast<BYTE *>(Cache + HeaderBytes);
 		BYTE *objectPlane = wallPlane + PlaneBytes;
 		BYTE *thirdPlane = objectPlane + PlaneBytes;
-		for(int i = 0; i < Cells; ++i)
-		{
-			WriteLittleShort(wallPlane + i * 2, raw[i * 2]);
-			WriteLittleShort(objectPlane + i * 2, raw[i * 2 + 1]);
-		}
+		NitemareLayout::ExpandCells(raw, wallPlane, objectPlane, Cells);
 		memset(thirdPlane, 0, PlaneBytes);
 
 		RefCount = 1;
@@ -487,10 +484,9 @@ private:
 				if(imageOffset < firstData || imageOffset >= static_cast<DWORD>(length))
 					continue;
 
-				for(unsigned int f = 0; f < framePositions.Size(); ++f)
+				const int f = NitemareLayout::FindFrame(framePositions, framePositions.Size(), imageOffset);
+				if(f >= 0)
 				{
-					if(framePositions[f] != imageOffset)
-						continue;
 
 					FString alias;
 					if(objectDirectory)
@@ -499,7 +495,6 @@ private:
 						alias.Format("textures/N%dW%02X.n3i", episode, id);
 
 					AddRaw(alias, static_cast<int>(imageOffset), static_cast<int>(frameSizes[f]));
-					break;
 				}
 			}
 		}

@@ -1,0 +1,13 @@
+name: Nitemare synthetic data regression
+on: [push, pull_request]
+jobs:
+  synthetic:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test production map expansion and alias lookup
+        run: |
+          c++ -std=c++98 -Wall -Wextra -pedantic tests/nitemare_layout_test.cpp -o /tmp/nitemare-layout-test
+          /tmp/nitemare-layout-test
+      - name: Test complete bundle fingerprint checks
+        run: python3 -m unittest discover -s tests -p 'test_*.py'
